@@ -1,0 +1,83 @@
+# Risk engine
+
+The engine answers three separate questions about every scanned code:
+
+1. **Fraud evidence**: the *orientační skóre rizika* (indicative risk index) from 0 to 100.
+2. **Consequence**: what the code would do, for example start a recurring payment, forward your calls or link a device. This is never counted as fraud.
+3. **Inspection completeness**: complete / incomplete / skipped, and why.
+
+An unavailable check never overrides danger that has already been established.
+
+The reference implementation is [`scripts/lib/engine.mjs`](../scripts/lib/engine.mjs). The Swift (BQCore) and Kotlin ports must reproduce its numbers for every sample in [`shared/testdata/samples.json`](../shared/testdata/samples.json).
+
+## Pipeline
+
+```
+payload (string + raw bytes) → classifier → sensitivity gate → parser → evidence providers → per-type engine → assessment
+```
+
+- **The sensitivity gate runs first and cannot be overridden.** It covers 2FA secrets/exports, login and device-link tokens, FIDO, WalletConnect, seed phrases, Wi‑Fi passwords and personal documents. For these codes:
+  - nothing is fetched;
+  - the payload is never stored in history (a redacted summary only);
+  - nothing goes into telemetry or reports;
+  - camera frames are discarded.
+- **Evidence providers:** lexical URL analysis, bundled lists, payment and SMS/phone rules, OCR of printed text near the code, destination inspection, Quad9 protective DNS, RDAP domain age, and later a remote intel provider (backend/partner APIs).
+
+## Score
+
+```
+score = round(100 · sigmoid(baseline + Σ_groups min(cap, combine(weights))))
+```
+
+- **Evidence groups** keep correlated signals from inflating the score. For example TLD, free hosting, randomness and domain age are all "weak provenance" and share one cap.
+- **Weak-only cap:** evidence made up only of weak provenance, transport or OCR can never exceed **59** (Caution).
+- **Floors** apply afterwards, only for strong, specific evidence:
+  - 25 for a credible identity or context discrepancy;
+  - 80 for secret exfiltration, a deceptive subscription or a provider security block;
+  - 95 for a reviewed malicious match.
+- **Allowlists only switch off impersonation and redirect heuristics.** They never add trust and never cancel malicious-content evidence.
+- **Weights** are in [`shared/rules/weights.json`](../shared/rules/weights.json). They are an uncalibrated starter set that will be calibrated on independently labelled data later.
+
+| Band | Range | Wording |
+|---|---|---|
+| Bez známých hrozeb | 0–24 | "V provedených kontrolách jsme nenašli varovné znaky." Never "safe" or "verified" |
+| Buďte opatrní | 25–59 | Leads with the specific concern |
+| Nebezpečné | 60–100 | Likely consequence + what to do |
+| Nelze ověřit | inspection incomplete and score < 25 | What remains unchecked; muted score |
+
+## Link inspection
+
+**Before any network contact:**
+1. Local lists and domain-only checks run first.
+2. Links that look like login, confirmation, redemption or unsubscribe URLs, or that contain tokens, are **not** fetched automatically.
+3. Private and special-use addresses are refused.
+
+**How pages are fetched:**
+- HTTPS only. For `http://` links the HTTPS variant is tried and cleartext is never fetched.
+- One streamed GET per hop, with no cookies and no JavaScript.
+- Every redirect hop is re-checked against all the rules above.
+- Budgets: 10 requests, 8 s, 512 KiB per page.
+- The walk **stops before any mobile-operator or carrier-billing host**, so your phone number isn't exposed.
+- The result is the **observed** redirect chain plus what the page asks for: prices and intervals, phone, OTP, card and password fields, claimed brands.
+
+**The subscription-page detector** needs all three of these before it raises the score to 80 or more:
+- a recurring price (e.g. "99 Kč týdně");
+- an activation mechanism;
+- independent deception (e.g. "zdarma" or a parking/menu promise replaced by a subscription).
+
+A clearly disclosed free trial never qualifies. See [`shared/rules/dcb.json`](../shared/rules/dcb.json).
+
+## Czech specifics
+- **Premium SMS** (APMS code 5.6):
+  - 7 digits `90z xy ab`: AB Kč per sent SMS;
+  - 8 digits `90z xy abc`: ABC Kč per received SMS;
+  - 5 digits: an ordering number whose price isn't encoded;
+  - the category comes from `z`, e.g. 902 = tickets/parking.
+- **Premium voice numbers:**
+  - 900, 906, 909: per-minute price;
+  - 905: 10×AB per call;
+  - 908: AB per call.
+- **QR Platba:** IBAN mod-97, Czech mod-11 account check, ČNB bank codes, optional CRC32.
+  - A code that names a state institution but whose account is not at ČNB (0710) gets a Caution explainer.
+  - The recipient name inside a code is never verified. Czech banks will only verify payee names for euro payments, from July 2027.
+- **Parking:** official hosts and their expected redirect relationships per city ([`parking.json`](../shared/rules/parking.json)).

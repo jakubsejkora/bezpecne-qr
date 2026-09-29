@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "retrieved": "2026-09-29",
+  "note": "Exact official hosts plus expected redirect relationships. Allowlisting only suppresses impersonation/redirect heuristics; it never adds trust and never cancels malicious-content evidence. Trust never follows an arbitrary outbound redirect.",
+  "sources": [
+    "TSK Praha — payment apps from 1 Jan 2026: https://www.tsk-praha.cz/zmena-v-nabidce-platebnich-aplikaci-pro-parkovani-v-praze-od-1-1-2026/",
+    "Parkování v Praze: https://parking.praha.eu/cs/moznosti-parkovani-v-praze/",
+    "Svět Androida — fake EasyPark stickers in Prague: https://www.svetandroida.cz/parkovne-praha-qr-kod-podvod/",
+    "Parkování v Brně: https://www.parkovanivbrne.cz/aktuality/novy-online-parkovaci-automat-299",
+    "Ostrava parkování: https://ostravaparkovani.cz/cs",
+    "Plzeň: https://plzen.eu/o-meste/aktuality/aktuality-z-mesta/k-hrazeni-parkovneho-v-plzni-vyuzivejte-spravnou-aplikaci-vyzyva-mesto/"
+  ],
+  "cities": [
+    {
+      "id": "praha",
+      "name": "Praha",
+      "official": ["parking.praha.eu", "platba.parkujvpraze.cz", "parkujvpraze.cz", "vph.zpspraha.cz", "portal.zpspraha.cz", "tsk-praha.cz"],
+      "relationships": [["parking.praha.eu", "vph.zpspraha.cz"], ["parking.praha.eu", "platba.parkujvpraze.cz"]],
+      "tip": { "cs": "Oficiální QR kód je na pravém boku parkovacího automatu a vede na parking.praha.eu.", "en": "The official QR code is on the right side of the parking meter and leads to parking.praha.eu." }
+    },
+    { "id": "brno", "name": "Brno", "official": ["parkovanivbrne.cz", "onlinebrno.parksimply.cz"], "relationships": [], "sms": "90206" },
+    { "id": "ostrava", "name": "Ostrava", "official": ["ostravaparkovani.cz", "parkum.cz", "parkum.app"], "relationships": [] },
+    { "id": "plzen", "name": "Plzeň", "official": ["parksimply.cz"], "relationships": [], "tip": { "cs": "Ve městských zónách platí jen ParkSimply Plzeň a DoKapsy (ČSOB).", "en": "In city zones only ParkSimply Plzeň and DoKapsy (ČSOB) are valid." } }
+  ],
+  "providers": [
+    { "id": "easypark", "name": "EasyPark", "official": ["easypark.cz", "easypark.com"] },
+    { "id": "parksimply", "name": "ParkSimply", "official": ["parksimply.cz"] },
+    { "id": "citymove", "name": "Citymove", "official": ["citymove.app"] },
+    { "id": "sejf", "name": "SEJF", "official": ["sejf.cz"] },
+    { "id": "litacka", "name": "Lítačka", "official": ["litacka.cz"] }
+  ],
+  "discontinued": [
+    { "name": "MPLA", "domains": ["mpla.cz", "mpla.io"], "since": "2025-12-31", "note": "Never allowlist — lapsed domains can be re-registered by anyone." }
+  ],
+  "contextKeywords": ["parkovne", "parkovani", "parking", "parkovaci", "parkovací", "parkovné", "zona", "automat"]
+}

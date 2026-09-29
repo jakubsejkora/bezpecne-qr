@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "retrieved": "2026-09-29",
+  "note": "Platforms where anyone can publish a site under a shared parent domain (private Public Suffix List entries are handled as separate tenants). Weak evidence only (url.host.free_hosting, 0.25).",
+  "hosts": [
+    "pages.dev", "workers.dev", "r2.dev", "trycloudflare.com", "webflow.io", "vercel.app", "netlify.app", "github.io",
+    "gitbook.io", "weebly.com", "weeblysite.com", "wixsite.com", "blogspot.com", "web.app", "firebaseapp.com",
+    "herokuapp.com", "onrender.com", "glitch.me", "duckdns.org", "square.site",
+    "dweb.link", "ipfs.io", "cf-ipfs.com", "flk-ipfs.xyz"
+  ]
+}

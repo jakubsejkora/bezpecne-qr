@@ -1,0 +1,1130 @@
+{
+  "schemaVersion": 1,
+  "note": "Canonical Bezpečné QR test corpus. All people, accounts, domains and network responses are synthetic unless marked 'official'. Fictional domains were checked to be unregistered on 2026-09-29. Scores are computed by scripts/lib/engine.mjs from shared/rules/weights.json; 'expected.band' is the design intent and the generator fails if they disagree.",
+  "samples": [
+    {
+      "id": "url-menu-shortener", "group": "links", "scene": "cafe", "symbology": "qr",
+      "title": { "cs": "Menu v kavárně přes zkracovač", "en": "Café menu via a short link" },
+      "payload": "https://qrco.de/bfK7aQ",
+      "type": "url", "engine": "url",
+      "fields": { "url": "https://qrco.de/bfK7aQ", "host": "qrco.de", "registrable": "qrco.de" },
+      "inspection": {
+        "chain": [
+          { "url": "https://qrco.de/bfK7aQ", "status": 302, "kind": "shortener" },
+          { "url": "https://www.kavarnaulipy.cz/menu", "status": 200 }
+        ],
+        "final": { "url": "https://www.kavarnaulipy.cz/menu", "host": "www.kavarnaulipy.cz", "registrable": "kavarnaulipy.cz" },
+        "page": { "title": "Kavárna U Lípy — menu", "extract": ["Snídaně do 11:00", "Espresso 55 Kč · Cappuccino 69 Kč", "Domácí dorty podle denní nabídky"], "asks": [] },
+        "domain": { "registered": "2020-04-14", "registry": "CZ.NIC", "quad9": "ok" }
+      },
+      "signals": [],
+      "consequences": [],
+      "checks": [
+        { "id": "chk.shortener_resolved", "args": { "host": "qrco.de" } },
+        { "id": "chk.redirects", "args": { "count": 1 } },
+        { "id": "chk.https_ok" },
+        { "id": "chk.domain_age", "args": { "date": "14. 4. 2020", "registry": "CZ.NIC" } },
+        { "id": "chk.quad9_ok" },
+        { "id": "chk.page_extract", "args": { "summary": "jídelní lístek, nic nevyžaduje" } }
+      ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "url-parking-praha-official", "group": "links", "scene": "parking", "symbology": "qr",
+      "title": { "cs": "Parkovací automat Praha — oficiální kód", "en": "Prague parking meter — official code" },
+      "payload": "https://parking.praha.eu/PA/1234",
+      "type": "url", "engine": "url", "official": true,
+      "fields": { "url": "https://parking.praha.eu/PA/1234", "host": "parking.praha.eu", "registrable": "praha.eu" },
+      "inspection": {
+        "chain": [
+          { "url": "https://parking.praha.eu/PA/1234", "status": 302 },
+          { "url": "https://vph.zpspraha.cz/PA/1234", "status": 200, "kind": "curated-relationship" }
+        ],
+        "final": { "url": "https://vph.zpspraha.cz/PA/1234", "host": "vph.zpspraha.cz", "registrable": "zpspraha.cz" },
+        "page": { "title": "Virtuální parkovací hodiny", "extract": ["Parkovací automat č. 1234", "Zóna: modrá", "Zadejte SPZ a délku stání"], "asks": ["licencePlate", "card"] },
+        "domain": { "registered": "před více než 5 lety", "registry": "CZ.NIC", "quad9": "ok" }
+      },
+      "signals": [],
+      "consequences": [],
+      "checks": [
+        { "id": "chk.allowlisted_parking", "args": { "city": "Praha" } },
+        { "id": "chk.redirects", "args": { "count": 1 } },
+        { "id": "chk.https_ok" },
+        { "id": "chk.quad9_ok" },
+        { "id": "chk.page_extract", "args": { "summary": "SPZ a platba kartou za parkování" } }
+      ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "url-parking-fake", "group": "links", "scene": "parking", "symbology": "qr",
+      "title": { "cs": "Falešná nálepka na parkovacím automatu", "en": "Fake sticker on a parking meter" },
+      "payload": "https://easypark-platba.cc/praha",
+      "type": "url", "engine": "url",
+      "fields": { "url": "https://easypark-platba.cc/praha", "host": "easypark-platba.cc", "registrable": "easypark-platba.cc" },
+      "ocr": { "printed": "parking.praha.eu", "near": "Zaplaťte parkovné online" },
+      "inspection": {
+        "chain": [ { "url": "https://easypark-platba.cc/praha", "status": 200 } ],
+        "final": { "url": "https://easypark-platba.cc/praha", "host": "easypark-platba.cc", "registrable": "easypark-platba.cc" },
+        "page": { "title": "EasyPark — Zaplaťte parkovné", "brandClaim": "EasyPark", "extract": ["Zaplaťte parkovné v zóně P1", "Číslo karty · Platnost · CVC", "Zaplatit 40 Kč"], "asks": ["card"] },
+        "domain": { "registered": "2026-09-24", "registry": "Verisign (.cc)", "quad9": "ok" }
+      },
+      "signals": [
+        { "id": "url.identity.brand_lookalike", "args": { "brand": "EasyPark", "domain": "easypark-platba.cc", "official": "easypark.cz" } },
+        { "id": "url.identity.false_official", "args": { "brand": "EasyPark", "domain": "easypark-platba.cc", "official": "easypark.cz" } },
+        { "id": "page.solicit.card_false_identity", "args": { "brand": "EasyPark" } },
+        { "id": "ocr.domain_mismatch", "args": { "printed": "parking.praha.eu", "actual": "easypark-platba.cc" } },
+        { "id": "url.tld.abused", "args": { "tld": "cc" } },
+        { "id": "url.domain.age_lt7d", "args": { "days": { "cs": "5 dní", "en": "5 days" }, "domain": "easypark-platba.cc", "date": "24. 9. 2026", "registry": "Verisign" } }
+      ],
+      "consequences": [],
+      "checks": [ { "id": "chk.https_ok" }, { "id": "chk.page_extract", "args": { "summary": "číslo platební karty" } } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "danger" }
+    },
+    {
+      "id": "url-parking-fake-offline", "group": "links", "scene": "parking", "symbology": "qr", "network": "offline",
+      "title": { "cs": "Falešná nálepka — bez internetu", "en": "Fake sticker — offline" },
+      "payload": "https://easypark-platba.cc/praha",
+      "type": "url", "engine": "url",
+      "fields": { "url": "https://easypark-platba.cc/praha", "host": "easypark-platba.cc", "registrable": "easypark-platba.cc" },
+      "signals": [
+        { "id": "url.identity.brand_lookalike", "args": { "brand": "EasyPark", "domain": "easypark-platba.cc", "official": "easypark.cz" } },
+        { "id": "url.tld.abused", "args": { "tld": "cc" } }
+      ],
+      "consequences": [],
+      "checks": [],
+      "completeness": { "state": "incomplete", "reason": "inc.offline" },
+      "expected": { "band": "caution" }
+    },
+    {
+      "id": "url-dcb-subscription", "group": "links", "scene": "bench", "symbology": "qr",
+      "title": { "cs": "„Vyhrajte iPhone“ — skryté SMS předplatné", "en": "“Win an iPhone” — hidden SMS subscription" },
+      "payload": "https://vyhra-iphone17-cz.top/start",
+      "type": "url", "engine": "url",
+      "fields": { "url": "https://vyhra-iphone17-cz.top/start", "host": "vyhra-iphone17-cz.top", "registrable": "vyhra-iphone17-cz.top" },
+      "inspection": {
+        "chain": [
+          { "url": "https://vyhra-iphone17-cz.top/start", "status": 302 },
+          { "url": "https://vyhra-iphone17-cz.top/lp?c=cz", "status": 200 }
+        ],
+        "final": { "url": "https://vyhra-iphone17-cz.top/lp?c=cz", "host": "vyhra-iphone17-cz.top", "registrable": "vyhra-iphone17-cz.top" },
+        "page": {
+          "title": "Gratulujeme! Vyhrajte iPhone 17",
+          "extract": ["Gratulujeme! Jste dnešní vybraný návštěvník.", "Vyhrajte iPhone 17 zdarma — stačí zadat číslo.", "Telefonní číslo: [          ]", "[ Pokračovat ]", "Předplatné 99 Kč/týden, účtováno operátorem. Zrušíte SMS STOP na 90211."],
+          "asks": ["phone"],
+          "offer": { "text": "Předplatné 99 Kč/týden, účtováno operátorem", "promise": "iPhone 17 zdarma", "highlight": [4] }
+        },
+        "domain": { "registered": "2026-09-27", "registry": "ZDNS (.top)", "quad9": "ok" }
+      },
+      "signals": [
+        { "id": "page.solicit.deceptive_subscription", "args": { "promise": "iPhone 17 zdarma", "offer": "Předplatné 99 Kč/týden, účtováno operátorem" } },
+        { "id": "url.domain.age_lt7d", "args": { "days": { "cs": "2 dny", "en": "2 days" }, "domain": "vyhra-iphone17-cz.top", "date": "27. 9. 2026", "registry": "ZDNS" } },
+        { "id": "url.tld.abused", "args": { "tld": "top" } }
+      ],
+      "consequences": [ { "id": "csq.subscription_charge", "args": { "offer": "Předplatné 99 Kč/týden, účtováno operátorem" } } ],
+      "checks": [ { "id": "chk.redirects", "args": { "count": 1 } }, { "id": "chk.https_ok" }, { "id": "chk.page_extract", "args": { "summary": "telefonní číslo + předplatné 99 Kč/týden" } } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "danger" }
+    },
+    {
+      "id": "url-dcb-billing-stop", "group": "links", "scene": "bench", "symbology": "qr",
+      "title": { "cs": "Odkaz míří na platební bránu operátora", "en": "Link heads to an operator payment gateway" },
+      "payload": "https://hudba-zdarma-cz.top/go",
+      "type": "url", "engine": "url",
+      "fields": { "url": "https://hudba-zdarma-cz.top/go", "host": "hudba-zdarma-cz.top", "registrable": "hudba-zdarma-cz.top" },
+      "inspection": {
+        "chain": [
+          { "url": "https://hudba-zdarma-cz.top/go", "status": 302 },
+          { "url": "https://pay.dimoco.eu/cz/checkout", "status": null, "stopped": "billing" }
+        ],
+        "final": null,
+        "domain": { "registered": "2026-09-10", "registry": "ZDNS (.top)", "quad9": "ok" }
+      },
+      "signals": [
+        { "id": "url.tld.abused", "args": { "tld": "top" } },
+        { "id": "url.domain.age_lt30d", "args": { "domain": "hudba-zdarma-cz.top", "date": "10. 9. 2026" } }
+      ],
+      "consequences": [ { "id": "csq.billing_gateway", "args": { "host": "pay.dimoco.eu" } } ],
+      "checks": [ { "id": "chk.redirects", "args": { "count": 1 } } ],
+      "completeness": { "state": "incomplete", "reason": "inc.billing_stop" },
+      "expected": { "band": "incomplete" }
+    },
+    {
+      "id": "url-parcel-doplatek", "group": "links", "scene": "letter", "symbology": "qr",
+      "title": { "cs": "Falešný „doplatek za zásilku“", "en": "Fake “parcel surcharge”" },
+      "payload": "https://zasilkovna-doplatek-cz.shop/sledovani",
+      "type": "url", "engine": "url",
+      "fields": { "url": "https://zasilkovna-doplatek-cz.shop/sledovani", "host": "zasilkovna-doplatek-cz.shop", "registrable": "zasilkovna-doplatek-cz.shop" },
+      "inspection": {
+        "chain": [ { "url": "https://zasilkovna-doplatek-cz.shop/sledovani", "status": 200 } ],
+        "final": { "url": "https://zasilkovna-doplatek-cz.shop/sledovani", "host": "zasilkovna-doplatek-cz.shop", "registrable": "zasilkovna-doplatek-cz.shop" },
+        "page": { "title": "Zásilkovna — vaše zásilka čeká", "brandClaim": "Zásilkovna", "extract": ["Vaše zásilka nemohla být doručena.", "Uhraďte doplatek 29 Kč do 24 hodin.", "Číslo karty · Platnost · CVC"], "asks": ["card"] },
+        "domain": { "registered": "2026-09-15", "registry": "GMO Registry (.shop)", "quad9": "ok" }
+      },
+      "signals": [
+        { "id": "url.identity.brand_lookalike", "args": { "brand": "Zásilkovna", "domain": "zasilkovna-doplatek-cz.shop", "official": "zasilkovna.cz" } },
+        { "id": "url.identity.false_official", "args": { "brand": "Zásilkovna", "domain": "zasilkovna-doplatek-cz.shop", "official": "zasilkovna.cz" } },
+        { "id": "page.solicit.card_false_identity", "args": { "brand": "Zásilkovna" } },
+        { "id": "url.tld.common_legit", "args": { "tld": "shop" } }
+      ],
+      "consequences": [],
+      "checks": [ { "id": "chk.https_ok" }, { "id": "chk.page_extract", "args": { "summary": "číslo karty kvůli „doplatku 29 Kč“" } } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "danger" }
+    },
+    {
+      "id": "url-edalnice-blocked", "group": "links", "scene": "letter", "symbology": "qr",
+      "title": { "cs": "Falešná eDálnice — blokuje ji bezpečnostní DNS", "en": "Fake eDálnice — blocked by security DNS" },
+      "payload": "https://edalnice-uhrada.cz/",
+      "type": "url", "engine": "url",
+      "fields": { "url": "https://edalnice-uhrada.cz/", "host": "edalnice-uhrada.cz", "registrable": "edalnice-uhrada.cz" },
+      "inspection": { "chain": [], "final": null, "domain": { "registered": "2026-09-20", "registry": "CZ.NIC", "quad9": "blocked" } },
+      "signals": [
+        { "id": "intel.quad9_block", "args": { "domain": "edalnice-uhrada.cz" } },
+        { "id": "url.identity.brand_lookalike", "args": { "brand": "eDálnice", "domain": "edalnice-uhrada.cz", "official": "edalnice.gov.cz" } }
+      ],
+      "consequences": [],
+      "checks": [],
+      "completeness": { "state": "not-needed", "reason": "Doména je blokovaná, stránku jsme nenačítali." },
+      "expected": { "band": "danger" }
+    },
+    {
+      "id": "url-idn-lookalike", "group": "links", "scene": "letter", "symbology": "qr",
+      "title": { "cs": "Adresa s falešným písmenem (azbuka)", "en": "Address with a fake letter (Cyrillic)" },
+      "payload": "https://www.xn--css-cz-4nf.com/prihlaseni",
+      "type": "url", "engine": "url",
+      "fields": { "url": "https://www.xn--css-cz-4nf.com/prihlaseni", "display": "https://www.csаs-cz.com/prihlaseni", "host": "www.xn--css-cz-4nf.com", "hostDisplay": "www.csаs-cz.com", "registrable": "xn--css-cz-4nf.com" },
+      "signals": [ { "id": "url.identity.confusable_idn", "args": { "domain": "csаs-cz.com", "looksLike": "csas" } } ],
+      "consequences": [],
+      "checks": [ { "id": "chk.quad9_ok" } ],
+      "completeness": { "state": "skipped", "reason": "inc.auth_path_skipped", "manual": true },
+      "expected": { "band": "caution" }
+    },
+    {
+      "id": "url-userinfo-trick", "group": "links", "scene": "letter", "symbology": "qr",
+      "title": { "cs": "Trik se zavináčem v adrese banky", "en": "The @ trick in a bank address" },
+      "payload": "https://www.csob.cz@csob-overeni.top/",
+      "type": "url", "engine": "url",
+      "fields": { "url": "https://www.csob.cz@csob-overeni.top/", "host": "csob-overeni.top", "userinfo": "www.csob.cz", "registrable": "csob-overeni.top" },
+      "inspection": {
+        "chain": [ { "url": "https://csob-overeni.top/", "status": 200 } ],
+        "final": { "url": "https://csob-overeni.top/", "host": "csob-overeni.top", "registrable": "csob-overeni.top" },
+        "page": { "title": "ČSOB Internetbanking — přihlášení", "brandClaim": "ČSOB", "extract": ["Přihlaste se do internetového bankovnictví", "Identifikační číslo · PIN", "Pro ověření zadejte číslo karty"], "asks": ["password", "card"] },
+        "domain": { "registered": "2026-09-26", "registry": "ZDNS (.top)", "quad9": "ok" }
+      },
+      "signals": [
+        { "id": "url.identity.userinfo_trick", "args": { "fake": "www.csob.cz", "real": "csob-overeni.top" } },
+        { "id": "url.identity.brand_lookalike", "args": { "brand": "ČSOB", "domain": "csob-overeni.top", "official": "csob.cz" } },
+        { "id": "page.solicit.card_false_identity", "args": { "brand": "ČSOB" } },
+        { "id": "url.tld.abused", "args": { "tld": "top" } },
+        { "id": "url.domain.age_lt7d", "args": { "days": { "cs": "3 dny", "en": "3 days" }, "domain": "csob-overeni.top", "date": "26. 9. 2026", "registry": "ZDNS" } }
+      ],
+      "consequences": [],
+      "checks": [ { "id": "chk.https_ok" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "danger" }
+    },
+    {
+      "id": "url-ip-literal", "group": "links", "scene": "bench", "symbology": "qr",
+      "title": { "cs": "Nešifrovaný odkaz na IP adresu", "en": "Unencrypted link to an IP address" },
+      "payload": "http://185.199.1.23/platba",
+      "type": "url", "engine": "url",
+      "fields": { "url": "http://185.199.1.23/platba", "host": "185.199.1.23", "registrable": "185.199.1.23" },
+      "signals": [
+        { "id": "url.transport.http" },
+        { "id": "url.transport.ip_literal", "args": { "ip": "185.199.1.23" } }
+      ],
+      "consequences": [],
+      "checks": [],
+      "completeness": { "state": "incomplete", "reason": "inc.https_failed" },
+      "expected": { "band": "incomplete" }
+    },
+    {
+      "id": "url-free-hosting", "group": "links", "scene": "poster", "symbology": "qr",
+      "title": { "cs": "„Česká pošta“ na bezplatném hostingu", "en": "“Česká pošta” on free hosting" },
+      "payload": "https://ceska-posta-balik.pages.dev/",
+      "type": "url", "engine": "url",
+      "fields": { "url": "https://ceska-posta-balik.pages.dev/", "host": "ceska-posta-balik.pages.dev", "registrable": "ceska-posta-balik.pages.dev" },
+      "inspection": {
+        "chain": [ { "url": "https://ceska-posta-balik.pages.dev/", "status": 404 } ],
+        "final": { "url": "https://ceska-posta-balik.pages.dev/", "host": "ceska-posta-balik.pages.dev", "registrable": "ceska-posta-balik.pages.dev" },
+        "page": { "title": "Stránka nenalezena", "extract": ["Tato stránka už neexistuje."], "asks": [] },
+        "domain": { "registered": "neznámé (sdílená doména pages.dev)", "registry": "—", "quad9": "ok" }
+      },
+      "signals": [
+        { "id": "url.identity.brand_lookalike", "args": { "brand": "Česká pošta", "domain": "ceska-posta-balik.pages.dev", "official": "ceskaposta.cz" } },
+        { "id": "url.host.free_hosting", "args": { "provider": "Cloudflare Pages" } }
+      ],
+      "consequences": [],
+      "checks": [ { "id": "chk.https_ok" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "caution" }
+    },
+    {
+      "id": "url-open-redirect", "group": "links", "scene": "letter", "symbology": "qr",
+      "title": { "cs": "Přesměrování přes google.com", "en": "Redirect through google.com" },
+      "payload": "https://www.google.com/url?q=https://ceskaposta-doplatek.top/",
+      "type": "url", "engine": "url",
+      "fields": { "url": "https://www.google.com/url?q=https://ceskaposta-doplatek.top/", "host": "www.google.com", "registrable": "google.com", "inner": "https://ceskaposta-doplatek.top/" },
+      "inspection": {
+        "chain": [
+          { "url": "https://www.google.com/url?q=https://ceskaposta-doplatek.top/", "status": 200, "kind": "open-redirect" },
+          { "url": "https://ceskaposta-doplatek.top/", "status": null, "stopped": "timeout" }
+        ],
+        "final": { "url": "https://ceskaposta-doplatek.top/", "host": "ceskaposta-doplatek.top", "registrable": "ceskaposta-doplatek.top" },
+        "domain": { "registered": "neznámé", "registry": "ZDNS (.top)", "quad9": "ok" }
+      },
+      "signals": [
+        { "id": "url.identity.brand_lookalike", "args": { "brand": "Česká pošta", "domain": "ceskaposta-doplatek.top", "official": "ceskaposta.cz" } },
+        { "id": "url.tld.abused", "args": { "tld": "top" } }
+      ],
+      "consequences": [],
+      "checks": [],
+      "completeness": { "state": "incomplete", "reason": "inc.timeout" },
+      "expected": { "band": "caution" }
+    },
+    {
+      "id": "url-token-link", "group": "links", "scene": "letter", "symbology": "qr",
+      "title": { "cs": "Jednorázový odkaz s tokenem", "en": "Single-use link with a token" },
+      "payload": "https://moje.muj-energie-ucet-portal.cz/overeni?token=9f2c7a1e5b3d48c0a6e2f19d7b8c4e3a",
+      "type": "url", "engine": "url",
+      "fields": { "url": "https://moje.muj-energie-ucet-portal.cz/overeni?token=9f2c7a1e5b3d48c0a6e2f19d7b8c4e3a", "host": "moje.muj-energie-ucet-portal.cz", "registrable": "muj-energie-ucet-portal.cz" },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.quad9_ok" } ],
+      "completeness": { "state": "skipped", "reason": "inc.token_skipped", "manual": false },
+      "expected": { "band": "incomplete" }
+    },
+    {
+      "id": "url-offline-menu", "group": "links", "scene": "cafe", "symbology": "qr", "network": "offline",
+      "title": { "cs": "Menu v kavárně — bez internetu", "en": "Café menu — offline" },
+      "payload": "https://www.kavarnaulipy.cz/menu",
+      "type": "url", "engine": "url",
+      "fields": { "url": "https://www.kavarnaulipy.cz/menu", "host": "www.kavarnaulipy.cz", "registrable": "kavarnaulipy.cz" },
+      "signals": [],
+      "consequences": [],
+      "checks": [],
+      "completeness": { "state": "incomplete", "reason": "inc.offline" },
+      "expected": { "band": "incomplete" }
+    },
+    {
+      "id": "url-http-upgrade", "group": "links", "scene": "cafe", "symbology": "qr",
+      "title": { "cs": "Starý http:// odkaz — zkontrolovali jsme HTTPS", "en": "Old http:// link — HTTPS checked instead" },
+      "payload": "http://www.kavarnaulipy.cz/wifi",
+      "type": "url", "engine": "url",
+      "fields": { "url": "http://www.kavarnaulipy.cz/wifi", "host": "www.kavarnaulipy.cz", "registrable": "kavarnaulipy.cz", "upgraded": "https://www.kavarnaulipy.cz/wifi" },
+      "inspection": {
+        "chain": [ { "url": "https://www.kavarnaulipy.cz/wifi", "status": 200, "kind": "https-upgrade" } ],
+        "final": { "url": "https://www.kavarnaulipy.cz/wifi", "host": "www.kavarnaulipy.cz", "registrable": "kavarnaulipy.cz" },
+        "page": { "title": "Wi‑Fi pro hosty", "extract": ["Síť: Kavarna_U_Lipy", "Heslo najdete na účtence."], "asks": [] },
+        "domain": { "registered": "2020-04-14", "registry": "CZ.NIC", "quad9": "ok" }
+      },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.https_upgraded" }, { "id": "chk.domain_age", "args": { "date": "14. 4. 2020", "registry": "CZ.NIC" } }, { "id": "chk.quad9_ok" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "url-apk-download", "group": "links", "scene": "poster", "symbology": "qr",
+      "title": { "cs": "Stažení aplikace pro Android (APK)", "en": "Android app download (APK)" },
+      "payload": "https://aplikace-zdarma-cz.xyz/stahnout.apk",
+      "type": "url", "engine": "url", "subtype": "download",
+      "fields": { "url": "https://aplikace-zdarma-cz.xyz/stahnout.apk", "host": "aplikace-zdarma-cz.xyz", "registrable": "aplikace-zdarma-cz.xyz", "file": "stahnout.apk" },
+      "signals": [ { "id": "url.tld.abused", "args": { "tld": "xyz" } } ],
+      "consequences": [ { "id": "csq.apk_download" } ],
+      "checks": [ { "id": "chk.quad9_ok" } ],
+      "completeness": { "state": "not-needed", "reason": "Soubor ke stažení nenačítáme." },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "url-mobileconfig", "group": "links", "scene": "poster", "symbology": "qr",
+      "title": { "cs": "„VPN zdarma“ — konfigurační profil", "en": "“Free VPN” — configuration profile" },
+      "payload": "https://vpn-zdarma-cz.xyz/profil.mobileconfig",
+      "type": "url", "engine": "url", "subtype": "profile",
+      "fields": { "url": "https://vpn-zdarma-cz.xyz/profil.mobileconfig", "host": "vpn-zdarma-cz.xyz", "registrable": "vpn-zdarma-cz.xyz", "file": "profil.mobileconfig" },
+      "signals": [ { "id": "url.tld.abused", "args": { "tld": "xyz" } } ],
+      "consequences": [ { "id": "csq.profile_install" } ],
+      "checks": [ { "id": "chk.quad9_ok" } ],
+      "completeness": { "state": "not-needed", "reason": "Profil nestahujeme." },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "url-itms-services", "group": "links", "scene": "poster", "symbology": "qr",
+      "title": { "cs": "Instalace aplikace mimo App Store", "en": "App install outside the App Store" },
+      "payload": "itms-services://?action=download-manifest&url=https://apps-cz.xyz/manifest.plist",
+      "type": "app-install", "engine": "url",
+      "fields": { "scheme": "itms-services", "manifest": "https://apps-cz.xyz/manifest.plist", "host": "apps-cz.xyz", "registrable": "apps-cz.xyz" },
+      "signals": [ { "id": "url.tld.abused", "args": { "tld": "xyz" } } ],
+      "consequences": [ { "id": "csq.app_install" } ],
+      "checks": [],
+      "completeness": { "state": "not-needed", "reason": "Instalační manifest nenačítáme." },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "url-webcal", "group": "links", "scene": "poster", "symbology": "qr",
+      "title": { "cs": "Odběr kalendáře (webcal)", "en": "Calendar subscription (webcal)" },
+      "payload": "webcal://kalendar-akce.xyz/vyhry.ics",
+      "type": "webcal", "engine": "url",
+      "fields": { "url": "webcal://kalendar-akce.xyz/vyhry.ics", "host": "kalendar-akce.xyz", "registrable": "kalendar-akce.xyz" },
+      "signals": [ { "id": "url.tld.abused", "args": { "tld": "xyz" } } ],
+      "consequences": [ { "id": "csq.calendar_subscription" } ],
+      "checks": [ { "id": "chk.quad9_ok" } ],
+      "completeness": { "state": "not-needed", "reason": "Kalendář nestahujeme." },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "url-gov-portal", "group": "links", "scene": "letter", "symbology": "qr",
+      "title": { "cs": "Portál občana (gov.cz)", "en": "Citizen portal (gov.cz)" },
+      "payload": "https://portal.gov.cz/",
+      "type": "url", "engine": "url", "official": true,
+      "fields": { "url": "https://portal.gov.cz/", "host": "portal.gov.cz", "registrable": "gov.cz" },
+      "inspection": {
+        "chain": [ { "url": "https://portal.gov.cz/", "status": 200 } ],
+        "final": { "url": "https://portal.gov.cz/", "host": "portal.gov.cz", "registrable": "gov.cz" },
+        "page": { "title": "Portál občana", "extract": ["Přihlaste se přes Identitu občana", "Datová schránka · Řidičský průkaz · Daně"], "asks": [] },
+        "domain": { "registered": "před více než 5 lety", "registry": "CZ.NIC", "quad9": "ok" }
+      },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.allowlisted_gov" }, { "id": "chk.https_ok" }, { "id": "chk.quad9_ok" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "url-appstore", "group": "links", "scene": "poster", "symbology": "qr",
+      "title": { "cs": "Odkaz do App Store", "en": "App Store link" },
+      "payload": "https://apps.apple.com/cz/app/id1234567890",
+      "type": "store", "engine": "url",
+      "fields": { "url": "https://apps.apple.com/cz/app/id1234567890", "store": "App Store", "appId": "1234567890", "host": "apps.apple.com", "registrable": "apple.com" },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.https_ok" }, { "id": "chk.quad9_ok" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "url-whatsapp-chat", "group": "links", "scene": "card", "symbology": "qr",
+      "title": { "cs": "Chat na WhatsAppu", "en": "WhatsApp chat" },
+      "payload": "https://wa.me/420777123456?text=Dobr%C3%BD%20den",
+      "type": "messenger", "engine": "url",
+      "fields": { "service": "WhatsApp", "target": "+420 777 123 456", "text": "Dobrý den", "kind": "chat", "host": "wa.me", "registrable": "wa.me" },
+      "signals": [],
+      "consequences": [ { "id": "csq.opens_chat", "args": { "service": "WhatsApp", "target": "+420 777 123 456" } } ],
+      "checks": [ { "id": "chk.https_ok" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "url-telegram-invite", "group": "links", "scene": "bench", "symbology": "qr",
+      "title": { "cs": "Pozvánka do skupiny na Telegramu", "en": "Telegram group invitation" },
+      "payload": "https://t.me/+AbCdEfGh1234",
+      "type": "messenger", "engine": "url",
+      "fields": { "service": "Telegram", "target": "soukromá skupina", "kind": "group-invite", "host": "t.me", "registrable": "t.me" },
+      "signals": [],
+      "consequences": [ { "id": "csq.group_invite" } ],
+      "checks": [ { "id": "chk.https_ok" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "url-long-domain", "group": "links", "scene": "poster", "symbology": "qr",
+      "title": { "cs": "Extrémně dlouhá adresa", "en": "Extremely long address" },
+      "payload": "https://prihlaseni-internetove-bankovnictvi-overeni-totoznosti-klienta.sluzby-zakaznikum-podpora.xyz/cz/overeni",
+      "type": "url", "engine": "url",
+      "fields": { "url": "https://prihlaseni-internetove-bankovnictvi-overeni-totoznosti-klienta.sluzby-zakaznikum-podpora.xyz/cz/overeni", "host": "prihlaseni-internetove-bankovnictvi-overeni-totoznosti-klienta.sluzby-zakaznikum-podpora.xyz", "registrable": "sluzby-zakaznikum-podpora.xyz" },
+      "signals": [ { "id": "url.tld.abused", "args": { "tld": "xyz" } }, { "id": "url.host.random_label" } ],
+      "consequences": [],
+      "checks": [ { "id": "chk.quad9_ok" } ],
+      "completeness": { "state": "skipped", "reason": "inc.auth_path_skipped", "manual": true },
+      "expected": { "band": "incomplete" }
+    },
+    {
+      "id": "spd-basic", "group": "payments", "scene": "invoice", "symbology": "qr",
+      "title": { "cs": "QR Platba — běžná faktura", "en": "QR Platba — ordinary invoice" },
+      "payload": "SPD*1.0*ACC:CZ6508000000192000145399*AM:480.50*CC:CZK*MSG:PLATBA ZA ZBOZI*X-VS:1234567890",
+      "type": "spd", "engine": "payment",
+      "fields": { "kind": "payment", "iban": "CZ6508000000192000145399", "domestic": "19-2000145399/0800", "bankCode": "0800", "amount": "480.50", "currency": "CZK", "vs": "1234567890", "message": "PLATBA ZA ZBOZI" },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.iban_valid" }, { "id": "chk.bank_known", "args": { "bank": "Česká spořitelna, a.s." } }, { "id": "chk.format_only" }, { "id": "chk.crc_missing" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "spd-instant-named", "group": "payments", "scene": "cafe", "symbology": "qr",
+      "title": { "cs": "Okamžitá platba v kavárně", "en": "Instant payment at a café" },
+      "payload": "SPD*1.0*ACC:CZ6508000000192000145399*AM:245.00*CC:CZK*RN:KAVARNA U LIPY*PT:IP*MSG:UCET STUL 4",
+      "type": "spd", "engine": "payment",
+      "fields": { "kind": "payment", "iban": "CZ6508000000192000145399", "domestic": "19-2000145399/0800", "bankCode": "0800", "amount": "245.00", "currency": "CZK", "recipientName": "KAVARNA U LIPY", "paymentType": "IP", "message": "UCET STUL 4" },
+      "signals": [],
+      "consequences": [ { "id": "csq.instant_payment" } ],
+      "checks": [ { "id": "chk.iban_valid" }, { "id": "chk.bank_known", "args": { "bank": "Česká spořitelna, a.s." } }, { "id": "chk.format_only" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "spd-standing-order", "group": "payments", "scene": "letter", "symbology": "qr",
+      "title": { "cs": "Trvalý příkaz — každý měsíc", "en": "Standing order — every month" },
+      "payload": "SPD*1.0*ACC:CZ6920100000001234567899*AM:250.00*CC:CZK*FRQ:1M*DT:20261015*MSG:PREDPLATNE CASOPISU",
+      "type": "spd", "engine": "payment",
+      "fields": { "kind": "standing", "iban": "CZ6920100000001234567899", "domestic": "1234567899/2010", "bankCode": "2010", "amount": "250.00", "currency": "CZK", "frequency": "1M", "dueDate": "2026-10-15", "message": "PREDPLATNE CASOPISU" },
+      "signals": [],
+      "consequences": [ { "id": "csq.recurring_payment", "args": { "amount": "250 Kč", "frequency": { "cs": "každý měsíc", "en": "every month" } } } ],
+      "checks": [ { "id": "chk.iban_valid" }, { "id": "chk.bank_known", "args": { "bank": "Fio banka, a.s." } }, { "id": "chk.format_only" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "scd-direct-debit", "group": "payments", "scene": "letter", "symbology": "qr",
+      "title": { "cs": "Souhlas s inkasem", "en": "Direct debit consent" },
+      "payload": "SCD*1.0*ACC:CZ6920100000001234567899*AM:1500.00*CC:CZK*DT:20261001*DL:20271001*MSG:INKASO ENERGIE",
+      "type": "spd", "engine": "payment",
+      "fields": { "kind": "directDebit", "iban": "CZ6920100000001234567899", "domestic": "1234567899/2010", "bankCode": "2010", "amount": "1500.00", "currency": "CZK", "dueDate": "2026-10-01", "lastDate": "2027-10-01", "message": "INKASO ENERGIE" },
+      "signals": [],
+      "consequences": [ { "id": "csq.direct_debit", "args": { "amount": "1 500 Kč", "validity": { "cs": "od 1. 10. 2026 do 1. 10. 2027", "en": "from 1 Oct 2026 to 1 Oct 2027" } } } ],
+      "checks": [ { "id": "chk.iban_valid" }, { "id": "chk.bank_known", "args": { "bank": "Fio banka, a.s." } } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "spd-invalid-iban", "group": "payments", "scene": "mall", "symbology": "qr",
+      "title": { "cs": "Poškozený platební kód (neplatný IBAN)", "en": "Damaged payment code (invalid IBAN)" },
+      "payload": "SPD*1.0*ACC:CZ6508000000192000145398*AM:99.00*CC:CZK*MSG:VSTUPNE",
+      "type": "spd", "engine": "payment", "invalid": true,
+      "fields": { "kind": "payment", "iban": "CZ6508000000192000145398", "domestic": "19-2000145398/0800", "bankCode": "0800", "amount": "99.00", "currency": "CZK", "message": "VSTUPNE" },
+      "signals": [],
+      "consequences": [ { "id": "csq.invalid_payment", "args": { "reason": { "cs": "Číslo účtu (IBAN) nemá platný kontrolní součet.", "en": "The account number (IBAN) has an invalid checksum." } } } ],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "spd-state-claim", "group": "payments", "scene": "windshield", "symbology": "qr",
+      "title": { "cs": "„Pokuta od Policie ČR“ za stěračem", "en": "“Police fine” under the wiper" },
+      "payload": "SPD*1.0*ACC:CZ6920100000001234567899*AM:1500.00*CC:CZK*RN:POLICIE CR*MSG:POKUTA ZA PARKOVANI*X-VS:4455667788",
+      "type": "spd", "engine": "payment",
+      "fields": { "kind": "payment", "iban": "CZ6920100000001234567899", "domestic": "1234567899/2010", "bankCode": "2010", "amount": "1500.00", "currency": "CZK", "recipientName": "POLICIE CR", "vs": "4455667788", "message": "POKUTA ZA PARKOVANI" },
+      "signals": [ { "id": "pay.state_claim_bank_mismatch", "args": { "institution": "Policie ČR", "bank": "Fio banka", "bankCode": "2010" } } ],
+      "consequences": [],
+      "checks": [ { "id": "chk.iban_valid" }, { "id": "chk.bank_known", "args": { "bank": "Fio banka, a.s." } }, { "id": "chk.format_only" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "caution" }
+    },
+    {
+      "id": "spd-safe-account", "group": "payments", "scene": "letter", "symbology": "qr",
+      "title": { "cs": "„Převeďte peníze na bezpečný účet“", "en": "“Move your money to a safe account”" },
+      "payload": "SPD*1.0*ACC:CZ6920100000001234567899*AM:250000.00*CC:CZK*MSG:PREVOD NA BEZPECNY UCET",
+      "type": "spd", "engine": "payment",
+      "fields": { "kind": "payment", "iban": "CZ6920100000001234567899", "domestic": "1234567899/2010", "bankCode": "2010", "amount": "250000.00", "currency": "CZK", "message": "PREVOD NA BEZPECNY UCET" },
+      "signals": [ { "id": "pay.safe_account_instruction", "args": { "text": "PREVOD NA BEZPECNY UCET" } } ],
+      "consequences": [],
+      "checks": [ { "id": "chk.iban_valid" }, { "id": "chk.bank_known", "args": { "bank": "Fio banka, a.s." } } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "danger" }
+    },
+    {
+      "id": "spd-foreign-parking", "group": "payments", "scene": "parking", "symbology": "qr",
+      "title": { "cs": "Parkovné na zahraniční účet", "en": "Parking fee to a foreign account" },
+      "payload": "SPD*1.0*ACC:LT121000011101001000*AM:60.00*CC:CZK*MSG:PARKOVNE PRAHA ZONA 1",
+      "type": "spd", "engine": "payment",
+      "fields": { "kind": "payment", "iban": "LT121000011101001000", "country": "LT", "amount": "60.00", "currency": "CZK", "message": "PARKOVNE PRAHA ZONA 1" },
+      "signals": [ { "id": "pay.context_mismatch", "args": { "text": "PARKOVNE PRAHA ZONA 1", "country": { "cs": "Litva", "en": "Lithuania" } } } ],
+      "consequences": [],
+      "checks": [ { "id": "chk.iban_valid" }, { "id": "chk.format_only" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "caution" }
+    },
+    {
+      "id": "spd-platba-f", "group": "payments", "scene": "invoice", "symbology": "qr",
+      "title": { "cs": "QR Platba+F — platba s údaji faktury", "en": "QR Platba+F — payment with invoice data" },
+      "payload": "SPD*1.0*ACC:CZ6508000000192000145399*AM:12100.00*CC:CZK*DT:20261015*X-VS:2026081501*X-INV:SID%2A1.0%2AID:FV2026-0815%2ADD:20260915%2AAM:12100.00%2AINI:12345679%2AVII:CZ12345679%2ADUZP:20260915%2ATB0:10000.00%2AT0:2100.00",
+      "type": "spd", "engine": "payment",
+      "fields": { "kind": "payment", "iban": "CZ6508000000192000145399", "domestic": "19-2000145399/0800", "bankCode": "0800", "amount": "12100.00", "currency": "CZK", "vs": "2026081501", "dueDate": "2026-10-15",
+        "invoice": { "id": "FV2026-0815", "issued": "2026-09-15", "taxPoint": "2026-09-15", "issuerIco": "12345679", "issuerVat": "CZ12345679", "base": "10000.00", "vat": "2100.00", "total": "12100.00" } },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.iban_valid" }, { "id": "chk.bank_known", "args": { "bank": "Česká spořitelna, a.s." } }, { "id": "chk.format_only" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "sid-invoice", "group": "payments", "scene": "invoice", "symbology": "qr",
+      "title": { "cs": "QR Faktura (údaje faktury)", "en": "QR Faktura (invoice data)" },
+      "payload": "SID*1.0*ID:FV2026-0816*DD:20260920*AM:3630.00*TP:0*TD:9*VS:2026081601*INI:12345679*VII:CZ12345679*DUZP:20260920*DT:20261004*TB0:3000.00*T0:630.00*CC:CZK*ACC:CZ6508000000192000145399",
+      "type": "sid", "engine": "none",
+      "fields": { "id": "FV2026-0816", "issued": "2026-09-20", "due": "2026-10-04", "taxPoint": "2026-09-20", "total": "3630.00", "currency": "CZK", "vs": "2026081601", "issuerIco": "12345679", "issuerVat": "CZ12345679", "base": "3000.00", "vat": "630.00", "iban": "CZ6508000000192000145399" },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.iban_valid" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "epc-girocode", "group": "payments", "scene": "invoice", "symbology": "qr",
+      "title": { "cs": "Evropská platba v eurech (GiroCode)", "en": "European euro payment (GiroCode)" },
+      "payload": "BCD\n002\n1\nSCT\nCOBADEFFXXX\nTierheim Musterstadt e.V.\nDE89370400440532013000\nEUR25.00\n\n\nSpende Oktober 2026",
+      "type": "epc", "engine": "payment",
+      "fields": { "version": "002", "bic": "COBADEFFXXX", "name": "Tierheim Musterstadt e.V.", "iban": "DE89370400440532013000", "amount": "25.00", "currency": "EUR", "text": "Spende Oktober 2026" },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.iban_valid" }, { "id": "chk.format_only" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "swiss-qr-bill", "group": "payments", "scene": "invoice", "symbology": "qr", "official": true,
+      "title": { "cs": "Švýcarská QR faktura", "en": "Swiss QR-bill" },
+      "payload": "SPC\n0200\n1\nCH4431999123000889012\nS\nRobert Schneider AG\nRue du Lac\n1268\n2501\nBiel\nCH\n\n\n\n\n\n\n\n1949.75\nCHF\nS\nPia-Maria Rutschmann-Schnyder\nGrosse Marktgasse\n28\n9400\nRorschach\nCH\nQRR\n210000000003139471430009017\nOrder of 15 June 2020\nEPD\n//S1/10/10201409/11/200701/20/140.000-53/30/102673831/31/200615/32/7.7/33/7.7:139.40/40/0:30\nName AV1: UV;UltraPay005;12345\nName AV2: XY;XYService;54321",
+      "type": "spc", "engine": "payment",
+      "fields": { "iban": "CH4431999123000889012", "creditor": "Robert Schneider AG, Rue du Lac 1268, 2501 Biel", "amount": "1949.75", "currency": "CHF", "debtor": "Pia-Maria Rutschmann-Schnyder, Rorschach", "referenceType": "QRR", "reference": "210000000003139471430009017", "message": "Order of 15 June 2020" },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.iban_valid" }, { "id": "chk.format_only" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "crypto-bitcoin", "group": "payments", "scene": "poster", "symbology": "qr",
+      "title": { "cs": "Bitcoinový „dar“", "en": "Bitcoin “donation”" },
+      "payload": "bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4?amount=0.015&label=Dar%20pro%20utulek",
+      "type": "crypto", "engine": "payment",
+      "fields": { "network": "Bitcoin", "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4", "amount": "0.015", "unit": "BTC", "label": "Dar pro útulek" },
+      "signals": [],
+      "consequences": [ { "id": "csq.irreversible_crypto" } ],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "crypto-erc20", "group": "payments", "scene": "screen", "symbology": "qr",
+      "title": { "cs": "Platba tokenem USDT (Ethereum)", "en": "USDT token payment (Ethereum)" },
+      "payload": "ethereum:0xdAC17F958D2ee523a2206206994597C13D831ec7@1/transfer?address=0x8e23Ee67d1332aD560396262C48ffbB01f93d052&uint256=250000000",
+      "type": "crypto", "engine": "payment",
+      "fields": { "network": "Ethereum", "chainId": 1, "contract": "0xdAC17F958D2ee523a2206206994597C13D831ec7", "token": "USDT", "recipient": "0x8e23Ee67d1332aD560396262C48ffbB01f93d052", "amount": "250", "unit": "USDT" },
+      "signals": [],
+      "consequences": [ { "id": "csq.token_contract", "args": { "amount": "250", "token": "USDT", "recipient": "0x8e23…d052" } }, { "id": "csq.irreversible_crypto" } ],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "crypto-lightning", "group": "payments", "scene": "cafe", "symbology": "qr", "official": true,
+      "title": { "cs": "Lightning faktura za kávu", "en": "Lightning invoice for a coffee" },
+      "payload": "lightning:lnbc2500u1pvjluezpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdq5xysxxatsyp3k7enxv4jsxqzpuaztrnwngzn3kdzw5hydlzf03qdgm2hdq27cqv3agm2awhz5se903vruatfhq77w3ls4evs3ch9zw97j25emudupq63nyw24cg27h2rspfj9srp",
+      "type": "crypto", "engine": "payment",
+      "fields": { "network": "Bitcoin Lightning", "amount": "0.0025", "unit": "BTC", "description": "1 cup coffee", "invoice": "lnbc2500u1pvjluez…fj9srp" },
+      "signals": [],
+      "consequences": [ { "id": "csq.irreversible_crypto" } ],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "paybysquare-detect", "group": "payments", "scene": "invoice", "symbology": "qr", "synthetic": true,
+      "title": { "cs": "Slovenská platba PAY by square", "en": "Slovak PAY by square payment" },
+      "payload": "0006K07I14D7V2I6GP4NNAPVOPHAN5KIG8PM07NL76OQIC9EFC8M6ACQI0CHSTHMM83Q1RR4M4L5OSI8AEKL39G5VL2Q4TMTJ5K59VO",
+      "type": "paybysquare", "engine": "none",
+      "fields": { "note": "Synthetic header-only payload for detection tests; replace with an official test vector in M2." },
+      "signals": [],
+      "consequences": [],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "sms-premium-ano", "group": "comms", "scene": "bench", "symbology": "qr",
+      "title": { "cs": "Placená SMS s „ANO“ na nálepce", "en": "Premium SMS with “ANO” on a sticker" },
+      "payload": "SMSTO:9021199:ANO HUDBA",
+      "type": "sms", "engine": "sms",
+      "fields": { "number": "9021199", "numberDisplay": "902 11 99", "body": "ANO HUDBA", "premium": { "prefix": "902", "digits": 7, "price": "99 Kč", "billing": "sent" } },
+      "signals": [
+        { "id": "sms.prefilled_premium", "args": { "number": "902 11 99" } },
+        { "id": "sms.activation_keyword", "args": { "keyword": "ANO", "body": "ANO HUDBA" } }
+      ],
+      "consequences": [ { "id": "csq.premium_sms", "args": { "price": "99 Kč", "number": "902 11 99", "category": { "cs": "jízdenky, doprava, parkování", "en": "tickets, transport, parking" }, "detail": { "cs": "Platíte při odeslání. Slovo ANO může spustit předplatné.", "en": "Charged when sent. The word ANO may start a subscription." } } } ],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "caution" }
+    },
+    {
+      "id": "sms-parking-90206", "group": "comms", "scene": "parking", "symbology": "qr",
+      "title": { "cs": "SMS parkování (90206)", "en": "SMS parking (90206)" },
+      "payload": "SMSTO:90206:BR A 1AB2345",
+      "type": "sms", "engine": "sms",
+      "fields": { "number": "90206", "numberDisplay": "902 06", "body": "BR A 1AB2345", "premium": { "prefix": "902", "digits": 5, "price": null, "billing": "order" } },
+      "signals": [ { "id": "sms.prefilled_premium", "args": { "number": "902 06" } } ],
+      "consequences": [ { "id": "csq.premium_sms_order", "args": { "number": "902 06", "category": { "cs": "jízdenky, doprava, parkování", "en": "tickets, transport, parking" } } } ],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "sms-dms-charity", "group": "comms", "scene": "poster", "symbology": "qr",
+      "title": { "cs": "Dárcovská SMS (DMS)", "en": "Charity SMS (DMS)" },
+      "payload": "SMSTO:87777:DMS UTULEK",
+      "type": "sms", "engine": "sms",
+      "fields": { "number": "87777", "numberDisplay": "87777", "body": "DMS UTULEK", "charity": true },
+      "signals": [],
+      "consequences": [ { "id": "csq.charity_sms" } ],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "sms-normal", "group": "comms", "scene": "card", "symbology": "qr",
+      "title": { "cs": "Běžná SMS", "en": "Ordinary SMS" },
+      "payload": "SMSTO:+420777123456:Dobrý den, chci si objednat dort.",
+      "type": "sms", "engine": "sms",
+      "fields": { "number": "+420777123456", "numberDisplay": "+420 777 123 456", "body": "Dobrý den, chci si objednat dort." },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.no_premium" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "tel-normal", "group": "comms", "scene": "card", "symbology": "qr",
+      "title": { "cs": "Telefonní číslo (pevná linka)", "en": "Phone number (landline)" },
+      "payload": "tel:+420224123456",
+      "type": "tel", "engine": "phone",
+      "fields": { "number": "+420224123456", "numberDisplay": "+420 224 123 456", "country": "CZ", "kind": { "cs": "pevná linka · Praha", "en": "landline · Prague" } },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.no_premium" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "tel-premium-909", "group": "comms", "scene": "poster", "symbology": "qr",
+      "title": { "cs": "Prémiová linka 909", "en": "Premium line 909" },
+      "payload": "tel:+420909501234",
+      "type": "tel", "engine": "phone",
+      "fields": { "number": "+420909501234", "numberDisplay": "909 50 1234", "country": "CZ", "kind": { "cs": "prémiová linka", "en": "premium line" }, "premium": { "prefix": "909", "price": "50 Kč/min" } },
+      "signals": [],
+      "consequences": [ { "id": "csq.premium_call", "args": { "price": { "cs": "50 Kč za minutu", "en": "50 CZK per minute" }, "number": "909 50 1234", "category": { "cs": "služby pro dospělé", "en": "adult services" } } } ],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "tel-wangiri", "group": "comms", "scene": "letter", "symbology": "qr",
+      "title": { "cs": "Zahraniční číslo (Ascension)", "en": "Foreign number (Ascension Island)" },
+      "payload": "tel:+2475551234",
+      "type": "tel", "engine": "phone",
+      "fields": { "number": "+2475551234", "numberDisplay": "+247 555 1234", "country": "AC", "kind": { "cs": "mezinárodní číslo", "en": "international number" } },
+      "signals": [ { "id": "phone.foreign_prefix", "args": { "cc": "+247", "country": { "cs": "Ascension", "en": "Ascension Island" } } } ],
+      "consequences": [ { "id": "csq.international_call", "args": { "country": { "cs": "Ascension", "en": "Ascension Island" } } } ],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "tel-mmi-forward", "group": "comms", "scene": "mall", "symbology": "qr",
+      "title": { "cs": "Kód, který přesměruje hovory", "en": "Code that forwards your calls" },
+      "payload": "tel:**21*+420606000000%23",
+      "type": "tel", "engine": "phone",
+      "fields": { "number": "**21*+420606000000#", "numberDisplay": "**21*+420 606 000 000#", "mmi": { "action": "activation", "service": { "cs": "přesměrování všech hovorů", "en": "forward all calls" }, "target": "+420 606 000 000" } },
+      "signals": [],
+      "consequences": [ { "id": "csq.call_forwarding", "args": { "target": "+420 606 000 000" } } ],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "mailto-lookalike", "group": "comms", "scene": "letter", "symbology": "qr",
+      "title": { "cs": "E-mail na falešnou „podporu ČSOB“", "en": "E-mail to fake “ČSOB support”" },
+      "payload": "mailto:podpora@csob-overeni.top?subject=Ov%C4%9B%C5%99en%C3%AD%20%C3%BA%C4%8Dtu&body=Pros%C3%ADm%20o%20ov%C4%9B%C5%99en%C3%AD%20m%C3%A9ho%20%C3%BA%C4%8Dtu",
+      "type": "mailto", "engine": "url",
+      "fields": { "to": "podpora@csob-overeni.top", "subject": "Ověření účtu", "body": "Prosím o ověření mého účtu", "host": "csob-overeni.top", "registrable": "csob-overeni.top" },
+      "signals": [
+        { "id": "url.identity.brand_lookalike", "args": { "brand": "ČSOB", "domain": "csob-overeni.top", "official": "csob.cz" } },
+        { "id": "url.tld.abused", "args": { "tld": "top" } }
+      ],
+      "consequences": [],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "caution" }
+    },
+    {
+      "id": "vcard-business", "group": "comms", "scene": "card", "symbology": "qr",
+      "title": { "cs": "Vizitka (vCard)", "en": "Business card (vCard)" },
+      "payload": "BEGIN:VCARD\nVERSION:3.0\nN:Nováková;Jana;;;\nFN:Jana Nováková\nORG:Kavárna U Lípy\nTITLE:Majitelka\nTEL;TYPE=CELL:+420777123456\nEMAIL:jana@kavarnaulipy.cz\nURL:https://www.kavarnaulipy.cz\nADR;TYPE=WORK:;;Lipová 12;Praha 2;;120 00;Česko\nEND:VCARD",
+      "type": "contact", "engine": "generic",
+      "fields": { "format": "vCard 3.0", "name": "Jana Nováková", "org": "Kavárna U Lípy", "title": "Majitelka", "tels": ["+420 777 123 456"], "emails": ["jana@kavarnaulipy.cz"], "urls": ["https://www.kavarnaulipy.cz"], "address": "Lipová 12, 120 00 Praha 2" },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.fields_checked" }, { "id": "chk.no_premium" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "mecard-simple", "group": "comms", "scene": "card", "symbology": "qr",
+      "title": { "cs": "Kontakt (MECARD)", "en": "Contact (MECARD)" },
+      "payload": "MECARD:N:Novák,Petr;TEL:+420777123456;EMAIL:petr.novak@example.com;;",
+      "type": "contact", "engine": "generic",
+      "fields": { "format": "MECARD", "name": "Petr Novák", "tels": ["+420 777 123 456"], "emails": ["petr.novak@example.com"], "urls": [] },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.fields_checked" }, { "id": "chk.no_premium" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "vcard-scam-url", "group": "comms", "scene": "card", "symbology": "qr",
+      "title": { "cs": "Vizitka „investičního poradce“ s podezřelým webem", "en": "“Investment adviser” card with a suspicious site" },
+      "payload": "BEGIN:VCARD\nVERSION:3.0\nN:Dvořák;Tomáš;;;\nFN:Tomáš Dvořák\nORG:Investiční poradenství\nTEL;TYPE=CELL:+420608123456\nURL:https://csob-bonus.top/vip\nEND:VCARD",
+      "type": "contact", "engine": "url",
+      "fields": { "format": "vCard 3.0", "name": "Tomáš Dvořák", "org": "Investiční poradenství", "tels": ["+420 608 123 456"], "emails": [], "urls": ["https://csob-bonus.top/vip"], "flaggedUrl": "https://csob-bonus.top/vip", "host": "csob-bonus.top", "registrable": "csob-bonus.top" },
+      "signals": [
+        { "id": "url.identity.brand_lookalike", "args": { "brand": "ČSOB", "domain": "csob-bonus.top", "official": "csob.cz" } },
+        { "id": "url.tld.abused", "args": { "tld": "top" } }
+      ],
+      "consequences": [],
+      "checks": [ { "id": "chk.fields_checked" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "caution" }
+    },
+    {
+      "id": "wifi-wpa2", "group": "security", "scene": "wifi", "symbology": "qr",
+      "title": { "cs": "Wi‑Fi v kavárně (WPA2)", "en": "Café Wi‑Fi (WPA2)" },
+      "payload": "WIFI:T:WPA;S:Kavarna_U_Lipy;P:kafe-2026;;",
+      "type": "wifi", "engine": "none", "sensitive": "password",
+      "fields": { "ssid": "Kavarna_U_Lipy", "security": "WPA2", "password": "kafe-2026", "hidden": false },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.wpa_ok", "args": { "security": "WPA2/WPA3" } } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "wifi-open", "group": "security", "scene": "mall", "symbology": "qr",
+      "title": { "cs": "Otevřená Wi‑Fi „FREE_WiFi_Praha“", "en": "Open Wi‑Fi “FREE_WiFi_Praha”" },
+      "payload": "WIFI:T:nopass;S:FREE_WiFi_Praha;;",
+      "type": "wifi", "engine": "none",
+      "fields": { "ssid": "FREE_WiFi_Praha", "security": "open", "password": null, "hidden": false },
+      "signals": [],
+      "consequences": [ { "id": "csq.open_wifi" } ],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "wifi-wep", "group": "security", "scene": "cafe", "symbology": "qr",
+      "title": { "cs": "Wi‑Fi se slabým šifrováním (WEP)", "en": "Wi‑Fi with weak encryption (WEP)" },
+      "payload": "WIFI:T:WEP;S:StaryRouter;P:12345abcde;;",
+      "type": "wifi", "engine": "none", "sensitive": "password",
+      "fields": { "ssid": "StaryRouter", "security": "WEP", "password": "12345abcde", "hidden": false },
+      "signals": [],
+      "consequences": [ { "id": "csq.weak_wifi" } ],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "wifi-hidden", "group": "security", "scene": "poster", "symbology": "qr",
+      "title": { "cs": "Skrytá Wi‑Fi síť", "en": "Hidden Wi‑Fi network" },
+      "payload": "WIFI:T:WPA;S:Kancelar;P:Tajne-heslo-2026;H:true;;",
+      "type": "wifi", "engine": "none", "sensitive": "password",
+      "fields": { "ssid": "Kancelar", "security": "WPA2", "password": "Tajne-heslo-2026", "hidden": true },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.wpa_ok", "args": { "security": "WPA2/WPA3" } } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "otpauth-setup", "group": "security", "scene": "screen", "symbology": "qr",
+      "title": { "cs": "Nastavení ověřovacího kódu (2FA)", "en": "Two-factor (2FA) setup" },
+      "payload": "otpauth://totp/GitHub:jakub?secret=JBSWY3DPEHPK3PXP&issuer=GitHub",
+      "type": "otpauth", "engine": "none", "sensitive": "secret",
+      "fields": { "kind": "TOTP", "issuer": "GitHub", "account": "jakub", "digits": 6, "period": 30 },
+      "signals": [],
+      "consequences": [ { "id": "csq.twofa_setup" } ],
+      "checks": [ { "id": "chk.sensitive_local" } ],
+      "completeness": { "state": "not-needed" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "otpauth-migration", "group": "security", "scene": "screen", "symbology": "qr",
+      "title": { "cs": "Export všech 2FA účtů", "en": "Export of all 2FA accounts" },
+      "payload": "otpauth-migration://offline?data=CjMKEFNZTlRIRVRJQy1URVNULTESEWpha3ViQGV4YW1wbGUuY29tGgZHaXRIdWIgASgBMAIKNgoQU1lOVEhFVElDLVRFU1QtMhIRamFrdWJAZXhhbXBsZS5jb20aCVNlem5hbS5jeiABKAEwAgooChBTWU5USEVUSUMtVEVTVC0zEgVqYWt1YhoHRGlzY29yZCABKAEwAhABGAEgACiy8hk%3D",
+      "type": "otpauth-migration", "engine": "none", "sensitive": "secret",
+      "fields": { "count": 3, "issuers": ["GitHub", "Seznam.cz", "Discord"] },
+      "signals": [],
+      "consequences": [ { "id": "csq.twofa_secrets", "args": { "count": 3 } } ],
+      "checks": [ { "id": "chk.sensitive_local" } ],
+      "completeness": { "state": "not-needed" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "login-whatsapp", "group": "security", "scene": "screen", "symbology": "qr", "synthetic": true,
+      "title": { "cs": "Přihlašovací kód WhatsApp Web", "en": "WhatsApp Web login code" },
+      "payload": "2@3b3m5fJ9RkQ7yZ1x8Q+eWw==,uWJ1ZXN0X25vaXNlX2tleV9mb3JfdGVzdHM=,SWRlbnRpdHlfa2V5X2Zvcl90ZXN0cw==,QURWX3NlY3JldF9mb3JfdGVzdHM=",
+      "type": "login", "engine": "none", "sensitive": "token",
+      "fields": { "service": "WhatsApp", "kind": "device-link" },
+      "signals": [],
+      "consequences": [ { "id": "csq.account_access", "args": { "effect": { "cs": "Propojí váš WhatsApp s jiným zařízením — uvidí všechny vaše zprávy.", "en": "Links your WhatsApp to another device — it would see all your messages." } } } ],
+      "checks": [ { "id": "chk.sensitive_local" } ],
+      "completeness": { "state": "not-needed" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "login-telegram", "group": "security", "scene": "screen", "symbology": "qr", "synthetic": true,
+      "title": { "cs": "Přihlášení do Telegramu", "en": "Telegram login" },
+      "payload": "tg://login?token=AQIDBAUGBwgJCgsMDQ4PEA",
+      "type": "login", "engine": "none", "sensitive": "token",
+      "fields": { "service": "Telegram", "kind": "login" },
+      "signals": [],
+      "consequences": [ { "id": "csq.account_access", "args": { "effect": { "cs": "Přihlásí jiné zařízení k vašemu Telegramu.", "en": "Signs another device into your Telegram." } } } ],
+      "checks": [ { "id": "chk.sensitive_local" } ],
+      "completeness": { "state": "not-needed" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "login-signal", "group": "security", "scene": "screen", "symbology": "qr", "synthetic": true,
+      "title": { "cs": "Propojení zařízení se Signalem", "en": "Signal device linking" },
+      "payload": "sgnl://linkdevice?uuid=Ab3dE5fG7hI9&pub_key=BQXKsyntheticTestKey",
+      "type": "login", "engine": "none", "sensitive": "token",
+      "fields": { "service": "Signal", "kind": "device-link" },
+      "signals": [],
+      "consequences": [ { "id": "csq.account_access", "args": { "effect": { "cs": "Propojí jiné zařízení s vaším Signalem — uvidí nové zprávy.", "en": "Links another device to your Signal — it would see new messages." } } } ],
+      "checks": [ { "id": "chk.sensitive_local" } ],
+      "completeness": { "state": "not-needed" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "fido-passkey", "group": "security", "scene": "screen", "symbology": "qr", "synthetic": true,
+      "title": { "cs": "Přihlášení passkey (FIDO)", "en": "Passkey sign-in (FIDO)" },
+      "payload": "FIDO:/0123456789012345678901234567890123456789012345678901234567890123456789",
+      "type": "fido", "engine": "none", "sensitive": "token",
+      "fields": { "kind": "hybrid" },
+      "signals": [],
+      "consequences": [ { "id": "csq.passkey_nearby" } ],
+      "checks": [ { "id": "chk.sensitive_local" } ],
+      "completeness": { "state": "not-needed" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "seed-phrase", "group": "security", "scene": "letter", "symbology": "qr",
+      "title": { "cs": "Obnovovací fráze kryptopeněženky", "en": "Crypto wallet recovery phrase" },
+      "payload": "abandon ability able about above absent absorb abstract absurd abuse access accident",
+      "type": "seed", "engine": "none", "sensitive": "secret",
+      "fields": { "words": 12 },
+      "signals": [],
+      "consequences": [ { "id": "csq.seed_phrase" } ],
+      "checks": [ { "id": "chk.sensitive_local" } ],
+      "completeness": { "state": "not-needed" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "walletconnect", "group": "security", "scene": "screen", "symbology": "qr",
+      "title": { "cs": "Propojení kryptopeněženky (WalletConnect)", "en": "Crypto wallet connection (WalletConnect)" },
+      "payload": "wc:7f6e504bfad60b485450578e05678ed3e8e8c4751d3c6160be17160d63ec90f9@2?relay-protocol=irn&symKey=587d5484ce2a2a6ee3ba1962fdd7e8588e06200c46823bd18fbd67def96ad303",
+      "type": "walletconnect", "engine": "none", "sensitive": "token",
+      "fields": { "version": 2, "relay": "irn" },
+      "signals": [],
+      "consequences": [ { "id": "csq.wallet_connect" } ],
+      "checks": [ { "id": "chk.sensitive_local" } ],
+      "completeness": { "state": "not-needed" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "event-concert", "group": "places", "scene": "poster", "symbology": "qr",
+      "title": { "cs": "Událost do kalendáře", "en": "Calendar event" },
+      "payload": "BEGIN:VEVENT\nSUMMARY:Koncert v parku\nDTSTART:20261012T180000\nDTEND:20261012T200000\nLOCATION:Riegrovy sady, Praha 2\nDESCRIPTION:Vstup zdarma\nEND:VEVENT",
+      "type": "event", "engine": "none",
+      "fields": { "summary": "Koncert v parku", "start": "2026-10-12T18:00", "end": "2026-10-12T20:00", "location": "Riegrovy sady, Praha 2", "description": "Vstup zdarma" },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.no_links" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "geo-point", "group": "places", "scene": "poster", "symbology": "qr",
+      "title": { "cs": "Místo na mapě", "en": "Place on a map" },
+      "payload": "geo:50.0875,14.4213?q=Staroměstské náměstí",
+      "type": "geo", "engine": "none", "decodeOnly": true,
+      "fields": { "lat": 50.0875, "lon": 14.4213, "label": "Staroměstské náměstí" },
+      "signals": [],
+      "consequences": [],
+      "checks": [],
+      "completeness": { "state": "not-needed" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "text-plain", "group": "other", "scene": "card", "symbology": "qr",
+      "title": { "cs": "Obyčejný text", "en": "Plain text" },
+      "payload": "Děkujeme za návštěvu! Heslo na Wi‑Fi najdete u baru.",
+      "type": "text", "engine": "none",
+      "fields": { "text": "Děkujeme za návštěvu! Heslo na Wi‑Fi najdete u baru.", "entities": [] },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.no_links" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "text-safe-account", "group": "other", "scene": "letter", "symbology": "qr",
+      "title": { "cs": "Text „převeďte úspory na bezpečný účet“", "en": "Text “move savings to a safe account”" },
+      "payload": "Váš účet byl napaden. Ihned převeďte úspory na bezpečný účet 1234567899/2010. Policie ČR",
+      "type": "text", "engine": "payment",
+      "fields": { "text": "Váš účet byl napaden. Ihned převeďte úspory na bezpečný účet 1234567899/2010. Policie ČR", "entities": [ { "kind": "account", "value": "1234567899/2010" }, { "kind": "phrase", "value": "bezpečný účet" } ] },
+      "signals": [ { "id": "pay.safe_account_instruction", "args": { "text": "Ihned převeďte úspory na bezpečný účet" } } ],
+      "consequences": [],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "danger" }
+    },
+    {
+      "id": "data-uri", "group": "other", "scene": "poster", "symbology": "qr",
+      "title": { "cs": "Celá webová stránka ukrytá v kódu (data:)", "en": "A whole web page hidden in the code (data:)" },
+      "payload": "data:text/html;base64,PGgxPkJhbmthPC9oMT48Zm9ybT48aW5wdXQgbmFtZT0iY2FyZCI+PC9mb3JtPg==",
+      "type": "data-uri", "engine": "url",
+      "fields": { "mime": "text/html", "preview": "<h1>Banka</h1><form><input name=\"card\"></form>" },
+      "signals": [ { "id": "page.solicit.credentials_unrelated", "args": { "fields": { "cs": "číslo karty", "en": "a card number" } } } ],
+      "consequences": [ { "id": "csq.executable_content", "args": { "what": { "cs": "Kód obsahuje celou webovou stránku s formulářem.", "en": "The code contains a whole web page with a form." } } } ],
+      "checks": [],
+      "completeness": { "state": "not-needed" },
+      "expected": { "band": "caution" }
+    },
+    {
+      "id": "js-uri", "group": "other", "scene": "mall", "symbology": "qr",
+      "title": { "cs": "Skript v kódu (javascript:)", "en": "Script in the code (javascript:)" },
+      "payload": "javascript:alert(document.cookie)",
+      "type": "js-uri", "engine": "none",
+      "fields": { "code": "alert(document.cookie)" },
+      "signals": [],
+      "consequences": [ { "id": "csq.executable_content", "args": { "what": { "cs": "Kód obsahuje skript.", "en": "The code contains a script." } } } ],
+      "checks": [],
+      "completeness": { "state": "not-needed" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "intent-uri", "group": "other", "scene": "poster", "symbology": "qr",
+      "title": { "cs": "Odkaz pro Android (intent) se záložní adresou", "en": "Android intent link with a fallback address" },
+      "payload": "intent://scan/#Intent;scheme=zxing;package=com.google.zxing.client.android;S.browser_fallback_url=https%3A%2F%2Fceskaposta-doplatek.top%2F;end",
+      "type": "intent", "engine": "url",
+      "fields": { "package": "com.google.zxing.client.android", "fallback": "https://ceskaposta-doplatek.top/", "host": "ceskaposta-doplatek.top", "registrable": "ceskaposta-doplatek.top" },
+      "signals": [
+        { "id": "url.identity.brand_lookalike", "args": { "brand": "Česká pošta", "domain": "ceskaposta-doplatek.top", "official": "ceskaposta.cz" } },
+        { "id": "url.tld.abused", "args": { "tld": "top" } }
+      ],
+      "consequences": [],
+      "checks": [],
+      "completeness": { "state": "incomplete", "reason": "inc.timeout" },
+      "expected": { "band": "caution" }
+    },
+    {
+      "id": "emvco-merchant", "group": "other", "scene": "shop", "symbology": "qr", "official": true,
+      "title": { "cs": "Obchodní platební QR (EMVCo, Asie)", "en": "Merchant payment QR (EMVCo, Asia)" },
+      "payload": "00020101021229300012D156000000000510A93FO3230Q31280012D15600000001030812345678520441115802CN5914BEST TRANSPORT6007BEIJING64200002ZH0104最佳运输0202北京540523.7253031565502016233030412340603***0708A60086670902ME91320016A0112233449988770708123456786304A13A",
+      "type": "emvco", "engine": "none",
+      "fields": { "merchant": "BEST TRANSPORT", "city": "BEIJING", "country": "CN", "amount": "23.72", "currencyCode": "156" },
+      "signals": [],
+      "consequences": [],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "gs1-digital-link", "group": "other", "scene": "product", "symbology": "qr",
+      "title": { "cs": "Kód na výrobku (GS1 Digital Link)", "en": "Product code (GS1 Digital Link)" },
+      "payload": "https://id.gs1.org/01/08594000000013/10/ABC123?17=271231",
+      "type": "gs1", "engine": "none",
+      "fields": { "gtin": "08594000000013", "batch": "ABC123", "expiry": "2027-12-31", "host": "id.gs1.org" },
+      "signals": [],
+      "consequences": [],
+      "checks": [],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "bcbp-boarding", "group": "other", "scene": "boarding", "symbology": "aztec",
+      "title": { "cs": "Palubní vstupenka (Aztec)", "en": "Boarding pass (Aztec)" },
+      "payload": "M1NOVAKOVA/JANA       EABC123 PRGAMSKL 1352 285Y012A0025 100",
+      "type": "bcbp", "engine": "none", "sensitive": "personal",
+      "fields": { "name": "NOVAKOVA/JANA", "pnr": "ABC123", "from": "PRG", "to": "AMS", "carrier": "KL", "flight": "1352", "date": { "cs": "12. 10.", "en": "12 Oct" }, "seat": "12A", "class": "Y" },
+      "signals": [],
+      "consequences": [ { "id": "csq.personal_data", "args": { "what": { "cs": "Palubní vstupenka obsahuje jméno a rezervační kód — s ním jde změnit let.", "en": "A boarding pass contains your name and booking code — enough to change the flight." } } } ],
+      "checks": [ { "id": "chk.sensitive_local" } ],
+      "completeness": { "state": "not-needed" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "hc1-certificate", "group": "other", "scene": "letter", "symbology": "qr", "synthetic": true,
+      "title": { "cs": "EU certifikát (HC1)", "en": "EU certificate (HC1)" },
+      "payload": "HC1:NCFOXN%TS3DH3ZSUZK+.V0ETD%65NL-AH-R6IOOP-IB5D2S5QL8O6G7:E6$N7E9M-TM%C9HSUMQPCA5A:5GR8MA5%76/1*$25U3.5M5TK*1LBR6",
+      "type": "hc1", "engine": "none", "sensitive": "personal",
+      "fields": { "note": "Synthetic prefix-only payload; not decodable." },
+      "signals": [],
+      "consequences": [ { "id": "csq.personal_data", "args": { "what": { "cs": "EU zdravotní certifikát obsahuje jméno a datum narození.", "en": "An EU health certificate contains your name and date of birth." } } } ],
+      "checks": [ { "id": "chk.sensitive_local" } ],
+      "completeness": { "state": "not-needed" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "malformed-spd", "group": "other", "scene": "mall", "symbology": "qr",
+      "title": { "cs": "Poškozený platební kód (písmeno v částce)", "en": "Damaged payment code (letter in the amount)" },
+      "payload": "SPD*1.0*ACC:CZ6508000000192000145399*AM:48O.50*CC:CZK",
+      "type": "spd", "engine": "payment", "invalid": true,
+      "fields": { "kind": "payment", "iban": "CZ6508000000192000145399", "domestic": "19-2000145399/0800", "bankCode": "0800", "amount": null, "amountRaw": "48O.50", "currency": "CZK" },
+      "signals": [],
+      "consequences": [ { "id": "csq.invalid_payment", "args": { "reason": { "cs": "Částka „48O.50“ není číslo.", "en": "The amount “48O.50” is not a number." } } } ],
+      "checks": [ { "id": "chk.iban_valid" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "microqr-table", "group": "other", "scene": "cafe", "symbology": "microqr",
+      "title": { "cs": "Micro QR — číslo stolu", "en": "Micro QR — table number" },
+      "payload": "STUL 4",
+      "type": "text", "engine": "none",
+      "fields": { "text": "STUL 4", "entities": [] },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.no_links" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "info" }
+    },
+    {
+      "id": "datamatrix-url", "group": "other", "scene": "product", "symbology": "datamatrix",
+      "title": { "cs": "DataMatrix s odkazem na e-shop", "en": "DataMatrix with an e-shop link" },
+      "payload": "https://www.kavarnaulipy.cz/eshop",
+      "type": "url", "engine": "url",
+      "fields": { "url": "https://www.kavarnaulipy.cz/eshop", "host": "www.kavarnaulipy.cz", "registrable": "kavarnaulipy.cz" },
+      "inspection": {
+        "chain": [ { "url": "https://www.kavarnaulipy.cz/eshop", "status": 200 } ],
+        "final": { "url": "https://www.kavarnaulipy.cz/eshop", "host": "www.kavarnaulipy.cz", "registrable": "kavarnaulipy.cz" },
+        "page": { "title": "E-shop Kavárny U Lípy", "extract": ["Káva do zrnkové mlýnky", "Doprava zdarma nad 1 000 Kč"], "asks": [] },
+        "domain": { "registered": "2020-04-14", "registry": "CZ.NIC", "quad9": "ok" }
+      },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.https_ok" }, { "id": "chk.domain_age", "args": { "date": "14. 4. 2020", "registry": "CZ.NIC" } }, { "id": "chk.quad9_ok" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "safe" }
+    },
+    {
+      "id": "pdf417-text", "group": "other", "scene": "letter", "symbology": "pdf417",
+      "title": { "cs": "PDF417 s textem objednávky", "en": "PDF417 with order text" },
+      "payload": "Objednávka č. 2026-0815, vyzvednutí do 30. 9.",
+      "type": "text", "engine": "none",
+      "fields": { "text": "Objednávka č. 2026-0815, vyzvednutí do 30. 9.", "entities": [] },
+      "signals": [],
+      "consequences": [],
+      "checks": [ { "id": "chk.no_links" } ],
+      "completeness": { "state": "complete" },
+      "expected": { "band": "info" }
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "scene-two-codes", "scene": "parking-two", "title": { "cs": "Dva kódy na jednom automatu (nálepka)", "en": "Two codes on one meter (sticker)" },
+      "children": ["url-parking-praha-official", "url-parking-fake"]
+    }
+  ]
+}

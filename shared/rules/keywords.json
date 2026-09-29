@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "retrieved": "2026-09-29",
+  "note": "Context only — never scored on their own. Matched deaccented and case-folded on whole words.",
+  "urlContext": ["doplatek", "doplata", "pokuta", "zasilka", "balik", "overeni", "overit", "vyhra", "vyhrajte", "darek", "platba", "parkovne", "vratka", "preplatek", "exekuce", "zablokovan", "aktualizace", "prihlaseni", "login", "verify", "secure"],
+  "safeAccountPhrases": ["bezpecny ucet", "bezpecneho uctu", "bezpecnem uctu", "prevedte do bezpeci", "prevod na bezpecny ucet", "ochrana uspor", "napadeny ucet", "vas ucet je napaden", "prevedte uspory"],
+  "urgencyPhrases": ["ihned", "do 24 hodin", "posledni vyzva", "hrozi exekuce", "zablokujeme", "okamzite"],
+  "authPathFamilies": ["auth", "oauth", "sso", "login", "logout", "magic-link", "reset-password", "verif", "confirm", "activat", "redeem", "redemp", "claim", "unsubscribe", "cancel", "delete", "accept-invite", "overeni", "potvrzeni", "aktivace", "odhlasit", "zrusit", "prihlaseni"],
+  "tokenQueryKeys": ["token", "access_token", "refresh_token", "id_token", "code", "otp", "ticket", "session", "sid", "secret", "key", "sig", "signature", "nonce", "k1", "SAMLRequest", "SAMLResponse"],
+  "tokenQueryPrefixes": ["X-Amz-", "X-Goog-"]
+}

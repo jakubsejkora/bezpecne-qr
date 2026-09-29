@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "retrieved": "2026-09-29",
+  "note": "Direct carrier billing (m-platba / premium SMS). The link inspector stops before any hop (other than the scanned URL itself) to an operator or billing host, marks the inspection incomplete and shows csq.billing_gateway. Reaching such a host is a consequence, not fraud evidence.",
+  "sources": [
+    "APMS Kodex Premium SMS 5.6 (1 Jul 2026): https://platmobilem.cz/wp-content/uploads/2026/07/Kodex-Premium-SMS-sluzby-5.6-CZ_ucinny-od-1.-7.-2026.pdf",
+    "Telecompaper — DIMOCO in CZ: https://www.telecompaper.com/news/dimoco-launches-mobile-carrier-billing-service-in-cr--829385",
+    "Digital Virgo × O2: https://www.digitalvirgo.com/newsroom/partnership-with-o2/"
+  ],
+  "operatorBillingHosts": ["o2platba.cz", "payments.vodafone.com"],
+  "operatorDomains": ["o2.cz", "t-mobile.cz", "vodafone.cz"],
+  "aggregators": [
+    { "name": "DIMOCO", "domains": ["dimoco.eu", "dimoco.at"] },
+    { "name": "Fortumo / Boku", "domains": ["fortumo.com", "boku.com"] },
+    { "name": "Digital Virgo", "domains": ["digitalvirgo.com"] },
+    { "name": "Centili", "domains": ["centili.com"] },
+    { "name": "net mobile", "domains": ["net-mobile.com"] },
+    { "name": "ComGate", "domains": ["comgate.cz"] },
+    { "name": "ATS Praha", "domains": ["atspraha.cz"] }
+  ],
+  "patterns": {
+    "normalization": "Deaccent + casefold; keep original spans for display.",
+    "price": "(?<![\\d.,])(?:\\d{1,3}(?:[ .]\\d{3})+|\\d+)(?:[,.]\\d{1,2}|,-)?\\s*(?:kc|czk)\\b",
+    "interval": "(?:(?:/|za|kazdych)\\s*)?(?:\\d+\\s*(?:dni|dnu)|den|tyden|mesic|rok|tydne|mesicne|denne|rocne)\\b",
+    "subscription": "predplatn\\w*|zkusebni\\s+obdobi|automatick\\w*\\s+obnov\\w*",
+    "operatorBilling": "platba\\s+mobilem|m[- ]?platba|uctovan\\w*.{0,24}operator\\w*",
+    "activation": "(?:posli|poslete|odeslete|odpovezte).{0,20}\\b(?:ano|start)\\b",
+    "premiumNumber": "(?<!\\d)90\\d{3}(?:\\d{2,3})?(?!\\d)",
+    "freeClaim": "\\bzdarma\\b|\\bgratis\\b|\\bvyhr\\w*"
+  },
+  "promotionRule": "Deceptive subscription (3.2, floor 80) requires ALL of: recurrence (price+interval within 40 chars in the same offer block, or a subscription match), activation (signup form with phone/OTP input + submit in the same offer, or an activation match), and independent deception (menu/parking promise replaced by an unrelated subscription, a 'zdarma' claim not clearly disclosed as a trial, or evidenced impersonation). A clearly disclosed free trial never qualifies."
+}

@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+
+# Conductor workspace files
+.context/
+
+# Xcode / iOS
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcarchive
+*.ipa
+*.dSYM.zip
+ios/artifacts/
+ios/*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Signing & secrets — never commit
+*.p8
+*.p12
+*.mobileprovision
+*.cer
+AuthKey_*.p8
+.env
+.env.*
+.dev.vars
+secrets/
+
+# Node / Cloudflare
+node_modules/
+.wrangler/
+
+# Editors
+.idea/
+.vscode/

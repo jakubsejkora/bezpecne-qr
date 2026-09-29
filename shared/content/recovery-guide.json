@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "retrieved": "2026-09-29",
+  "title": { "cs": "Už jsem zadal(a) údaje", "en": "I already entered my details" },
+  "intro": {
+    "cs": "Stalo se to i opatrným lidem. Čím rychleji zareagujete, tím víc se dá zachránit.",
+    "en": "It happens to careful people too. The faster you act, the more can be saved."
+  },
+  "sections": [
+    {
+      "id": "card", "icon": "creditcard",
+      "title": { "cs": "Zadal(a) jsem číslo karty", "en": "I entered my card number" },
+      "steps": {
+        "cs": ["Hned zablokujte kartu v aplikaci banky nebo na lince banky (číslo je na zadní straně karty).", "Nahlaste bance podezřelé platby — mohou je reklamovat.", "Požádejte o novou kartu."],
+        "en": ["Block the card right away in your banking app or on the bank's line (the number is on the back of the card).", "Report suspicious payments to your bank — they can dispute them.", "Ask for a new card."]
+      }
+    },
+    {
+      "id": "phone", "icon": "phone",
+      "title": { "cs": "Zadal(a) jsem telefonní číslo nebo kód z SMS", "en": "I entered my phone number or an SMS code" },
+      "steps": {
+        "cs": ["Pošlete „STOP“ na číslo, ze kterého chodí platby.", "Zkontrolujte vyúčtování nebo kredit a zablokujte platby třetím stranám (viz Ochrana u operátora).", "Nechtěné platby reklamujte u operátora do 2 měsíců."],
+        "en": ["Send “STOP” to the number charging you.", "Check your bill or credit and block third-party payments (see Operator protection).", "Dispute unwanted charges with your operator within 2 months."]
+      }
+    },
+    {
+      "id": "password", "icon": "key",
+      "title": { "cs": "Zadal(a) jsem heslo", "en": "I entered a password" },
+      "steps": {
+        "cs": ["Ihned změňte heslo — i všude, kde jste stejné heslo použili.", "Zapněte dvoufázové ověření.", "Odhlaste všechna neznámá zařízení."],
+        "en": ["Change the password immediately — everywhere you used it.", "Turn on two-factor authentication.", "Sign out all unknown devices."]
+      }
+    },
+    {
+      "id": "money", "icon": "banknote",
+      "title": { "cs": "Poslal(a) jsem peníze", "en": "I sent money" },
+      "steps": {
+        "cs": ["Okamžitě volejte do své banky — někdy jde platbu ještě zastavit.", "Sepište si, co se stalo: kdy, kolik, na jaký účet.", "Podejte trestní oznámení na Policii ČR (158)."],
+        "en": ["Call your bank immediately — sometimes the payment can still be stopped.", "Write down what happened: when, how much, to which account.", "File a report with the Police (158)."]
+      }
+    },
+    {
+      "id": "profile", "icon": "gear",
+      "title": { "cs": "Nainstaloval(a) jsem aplikaci nebo profil", "en": "I installed an app or a profile" },
+      "steps": {
+        "cs": ["Aplikaci smažte. Profil odstraníte v Nastavení → Obecné → VPN a správa zařízení.", "Změňte hesla k důležitým účtům."],
+        "en": ["Delete the app. Remove a profile in Settings → General → VPN & Device Management.", "Change the passwords of important accounts."]
+      }
+    },
+    {
+      "id": "login", "icon": "link",
+      "title": { "cs": "Naskenoval(a) jsem přihlašovací kód (WhatsApp, Telegram…)", "en": "I scanned a login code (WhatsApp, Telegram…)" },
+      "steps": {
+        "cs": ["V aplikaci otevřete Propojená zařízení a odhlaste všechna, která neznáte.", "Zapněte dvoufázové ověření (PIN) v aplikaci."],
+        "en": ["In the app open Linked devices and sign out every device you don't recognise.", "Turn on two-step verification (PIN) in the app."]
+      }
+    }
+  ],
+  "contacts": {
+    "cs": ["Policie ČR: 158", "Linka vaší banky: najdete ji na kartě nebo v aplikaci banky", "Podvodné SMS přeposílejte zdarma na 7726"],
+    "en": ["Police: 158", "Your bank's line: on your card or in the banking app", "Forward scam SMS for free to 7726"]
+  }
+}

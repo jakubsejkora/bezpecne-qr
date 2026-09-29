@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "retrieved": "2026-09-29",
+  "sources": [
+    "Interisle Consulting Group — Phishing Landscape 2025 (May 2024–Apr 2025): https://static1.squarespace.com/static/63dbf2b9075aa2535887e365/t/68dfd315512a675a8fd94ee8/1759499029838/phishinglandscape2025.pdf",
+    "Spamhaus TLD reputation Oct 2025–Mar 2026 (secondary summary): https://www.suped.com/learn/blocklists/what-is-the-most-abused-tld-top-level-domain-for-spam"
+  ],
+  "commonLegit": {
+    "signal": "url.tld.common_legit",
+    "note": "Common for legitimate Czech e-shops; weak evidence only (0.15).",
+    "tlds": ["shop", "online"]
+  },
+  "abused": {
+    "signal": "url.tld.abused",
+    "note": "Evidenced in abuse rankings; weak evidence only (0.3). Never enough for Caution on its own.",
+    "tlds": [
+      "xin", "bond", "cfd", "help", "win", "top", "icu", "sbs", "cyou", "lol", "qpon", "bid", "today", "buzz",
+      "rest", "bar", "casa", "best", "monster", "pics", "tk", "ml", "ga", "cf", "gq",
+      "xyz", "live", "vip", "club", "work", "support", "cc", "site", "click", "info", "ru", "cn"
+    ]
+  }
+}

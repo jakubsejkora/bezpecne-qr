@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "retrieved": "2026-09-29",
+  "sources": [
+    "APMS Kodex Premium SMS 5.6 §3.2 (1 Jul 2026): https://platmobilem.cz/wp-content/uploads/2026/07/Kodex-Premium-SMS-sluzby-5.6-CZ_ucinny-od-1.-7.-2026.pdf",
+    "Vyhláška 117/2007 Sb. (numbering plan): https://www.zakonyprolidi.cz/cs/2007-117",
+    "ČTÚ — numbers starting with 9: https://ctu.gov.cz/tiskova-zprava-vyuzivani-telefonnich-cisel-zacinajicich-cislici-9"
+  ],
+  "sms": {
+    "categories": {
+      "900": { "cs": "hlasování", "en": "voting" },
+      "901": { "cs": "e-knihy, streamování", "en": "e-books, streaming" },
+      "902": { "cs": "jízdenky, doprava, parkování", "en": "tickets, transport, parking" },
+      "903": { "cs": "hry, aplikace, kredity", "en": "games, apps, credits" },
+      "904": { "cs": "loga, horoskopy", "en": "logos, horoscopes" },
+      "905": { "cs": "nevyužito", "en": "unused" },
+      "906": { "cs": "hromadné hlasování", "en": "high-volume voting" },
+      "907": { "cs": "placený přístup, registry", "en": "paid access, registries" },
+      "908": { "cs": "nevyužito", "en": "unused" },
+      "909": { "cs": "pro dospělé", "en": "adult" }
+    },
+    "rules": [
+      { "digits": 7, "pattern": "^90\\d{5}$", "billing": "sent", "price": "last2", "cs": "Platíte při odeslání; poslední dvojčíslí je cena v Kč.", "en": "Charged when sent; the last two digits are the price in CZK." },
+      { "digits": 8, "pattern": "^90\\d{6}$", "billing": "received", "price": "last3", "cs": "Platíte za každou přijatou SMS; poslední trojčíslí je cena v Kč.", "en": "Charged per received SMS; the last three digits are the price in CZK." },
+      { "digits": 5, "pattern": "^90\\d{3}$", "billing": "order", "price": null, "cs": "Objednávkové číslo; cenu z čísla nepoznáme.", "en": "Ordering number; the price isn't encoded in it." }
+    ],
+    "charity": { "number": "87777", "recurringKeyword": "DMS ROK" },
+    "sharedParking": { "number": "90206", "cs": "Sdílené číslo pro SMS parkování a jízdenky", "en": "Shared number for SMS parking and tickets" },
+    "subscriptionLimits": { "maxWeeklyCzk": 99, "maxMonthlyCzk": 199, "reconfirmAfterCzk": 2000 },
+    "activationKeywords": ["ANO", "START"]
+  },
+  "voice": {
+    "900": { "pricing": "perMinute", "price": "AB", "cs": "placená informační linka", "en": "paid information line" },
+    "906": { "pricing": "perMinute", "price": "AB", "cs": "zábava a soutěže", "en": "entertainment and contests" },
+    "909": { "pricing": "perMinute", "price": "AB", "cs": "služby pro dospělé", "en": "adult services" },
+    "905": { "pricing": "perCall", "price": "10xAB", "cs": "jednorázová cena za hovor", "en": "one-off price per call" },
+    "908": { "pricing": "perCall", "price": "AB", "cs": "jednorázová cena za hovor", "en": "one-off price per call" },
+    "976": { "pricing": "internet", "price": null, "cs": "přístup k internetu za stanovenou cenu", "en": "internet access at a set price" }
+  },
+  "mmi": {
+    "activation": ["^\\*\\*21\\*", "^\\*\\*61\\*", "^\\*\\*62\\*", "^\\*\\*67\\*", "^\\*21\\*", "^\\*\\*004\\*", "^\\*\\*002\\*"],
+    "status": ["^\\*#21#", "^\\*#61#", "^\\*#62#", "^\\*#67#", "^\\*#06#"]
+  }
+}

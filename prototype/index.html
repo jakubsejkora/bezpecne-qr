@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bezpečné QR — interaktivní prototyp</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <strong>Bezpečné QR</strong>
+        <span class="brand-sub">interaktivní prototyp <span id="version"></span></span>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Sekce">
+      <button role="tab" data-action="tab" data-tab="prototype">Prototyp</button>
+      <button role="tab" data-action="tab" data-tab="testsheet">Testovací arch</button>
+      <button role="tab" data-action="tab" data-tab="notes">Poznámky k návrhu</button>
+    </nav>
+  </header>
+
+  <main id="view-prototype" class="workspace">
+    <aside class="panel panel-left" aria-label="Katalog kódů">
+      <div class="panel-head">
+        <h2 data-i18n="catalog.title">Katalog kódů</h2>
+        <input id="search" type="search" placeholder="Hledat…" data-i18n-placeholder="catalog.search" autocomplete="off">
+      </div>
+      <div id="catalog" class="catalog"></div>
+    </aside>
+
+    <section class="stage" aria-label="Telefon">
+      <div id="controls" class="controls"></div>
+      <div class="stage-inner">
+        <div id="phone-wrap" class="phone-wrap"></div>
+      </div>
+    </section>
+
+    <aside class="panel panel-right" aria-label="Diagnostika">
+      <div id="diagnostics" class="diagnostics"></div>
+    </aside>
+  </main>
+
+  <main id="view-testsheet" class="doc-view" hidden></main>
+  <main id="view-notes" class="doc-view" hidden></main>
+
+  <script src="vendor/bwip-js/bwip-js-min.js"></script>
+  <script src="data/data.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/codes.js"></script>
+  <script src="js/scenes.js"></script>
+  <script src="js/mascot.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/cards.js"></script>
+  <script src="js/screens.js"></script>
+  <script src="js/docs.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
