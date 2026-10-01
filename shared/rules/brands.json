@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "retrieved": "2026-09-29",
+  "matching": "A brand matches when one of its tokens equals a whole hostname label or hyphen-separated part (e.g. 'fio' in 'fio-overeni.top', but not in 'portfolio.cz'). Tokens of 6+ characters may also match as substrings. A match on a host that is not one of the official domains (or their subdomains) raises url.identity.brand_lookalike. Brand names in page text are context only.",
+  "sources": [
+    "Česká pošta security notices: https://www.ceskaposta.cz/o-spolecnosti/bezpecnostni-informace/aktualni-informace",
+    "Zásilkovna SMS security: https://www.zasilkovna.cz/bezpecnost-ochrana-dat/sms",
+    "eDálnice warning: https://edalnice.gov.cz/cs/media/pozor-na-falesne-sms-vyzyvajici-k-uhrade-poplatku",
+    "DIA gov.cz migration: https://www.dia.gov.cz/cs/aktuality/prechod-na-domenu-gov-cz-dokoncen",
+    "EasyPark scam guidance: https://www.easypark.com/cs-cz/jak-rozpoznat-podvod"
+  ],
+  "brands": [
+    { "id": "ceskaposta", "name": "Česká pošta", "tokens": ["ceskaposta", "cpost", "posta", "balikovna"], "official": ["ceskaposta.cz", "postaonline.cz", "balikovna.cz", "cpost.cz"] },
+    { "id": "zasilkovna", "name": "Zásilkovna", "tokens": ["zasilkovna", "packeta"], "official": ["zasilkovna.cz", "packeta.com", "packeta.cz"] },
+    { "id": "dpd", "name": "DPD", "tokens": ["dpd"], "official": ["dpd.cz", "dpd.com"] },
+    { "id": "gls", "name": "GLS", "tokens": ["gls"], "official": ["gls-group.com", "gls-group.eu"] },
+    { "id": "ppl", "name": "PPL", "tokens": ["ppl"], "official": ["ppl.cz"] },
+    { "id": "edalnice", "name": "eDálnice", "tokens": ["edalnice", "dalnice", "dalnicni", "vignette"], "official": ["edalnice.gov.cz", "edalnice.cz"] },
+    { "id": "gov", "name": "státní správa (gov.cz)", "tokens": ["financnisprava", "celnisprava", "policie", "cssz", "mvcr", "datovaschranka"], "official": ["gov.cz"] },
+    { "id": "cez", "name": "ČEZ", "tokens": ["cez", "cezdistribuce"], "official": ["cez.cz", "cezdistribuce.cz"] },
+    { "id": "csas", "name": "Česká spořitelna", "tokens": ["csas", "sporitelna", "ceskasporitelna", "george"], "official": ["csas.cz", "ceskasporitelna.cz"] },
+    { "id": "csob", "name": "ČSOB", "tokens": ["csob"], "official": ["csob.cz"] },
+    { "id": "kb", "name": "Komerční banka", "tokens": ["komercnibanka", "komercni"], "official": ["kb.cz"] },
+    { "id": "rb", "name": "Raiffeisenbank", "tokens": ["raiffeisen", "raiffeisenbank"], "official": ["rb.cz"] },
+    { "id": "moneta", "name": "MONETA Money Bank", "tokens": ["moneta"], "official": ["moneta.cz"] },
+    { "id": "airbank", "name": "Air Bank", "tokens": ["airbank"], "official": ["airbank.cz"] },
+    { "id": "fio", "name": "Fio banka", "tokens": ["fio", "fiobanka"], "official": ["fio.cz"] },
+    { "id": "o2", "name": "O2", "tokens": ["o2"], "official": ["o2.cz", "o2platba.cz"] },
+    { "id": "tmobile", "name": "T-Mobile", "tokens": ["tmobile", "t-mobile"], "official": ["t-mobile.cz"] },
+    { "id": "vodafone", "name": "Vodafone", "tokens": ["vodafone"], "official": ["vodafone.cz", "vodafone.com"] },
+    { "id": "easypark", "name": "EasyPark", "tokens": ["easypark", "easyepark"], "official": ["easypark.cz", "easypark.com", "easyparkgroup.com"] },
+    { "id": "alza", "name": "Alza", "tokens": ["alza"], "official": ["alza.cz"] },
+    { "id": "seznam", "name": "Seznam.cz", "tokens": ["seznam"], "official": ["seznam.cz"] }
+  ]
+}

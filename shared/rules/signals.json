@@ -1,0 +1,257 @@
+{
+  "schemaVersion": 1,
+  "note": "User-facing texts for every signal ID. Evidence = scored (weights.json). Consequences = what the code would do (never fraud evidence). Checks = what we verified. Incomplete = why inspection could not finish. {placeholders} are filled from signal arguments.",
+  "evidence": {
+    "url.tld.common_legit": {
+      "cs": { "title": "Koncovka .{tld}", "observation": "Adresa končí na .{tld}. Tuto koncovku používá hodně e‑shopů, ale i podvodníci.", "implication": "Samo o sobě to nic neznamená.", "action": "Ověřte si, kdo web provozuje." },
+      "en": { "title": "The .{tld} ending", "observation": "The address ends in .{tld}. Many e‑shops use it, and so do scammers.", "implication": "On its own this means nothing.", "action": "Check who runs the site." }
+    },
+    "url.tld.abused": {
+      "cs": { "title": "Často zneužívaná koncovka .{tld}", "observation": "Adresa končí na .{tld}, kterou podvodníci zneužívají častěji než jiné.", "implication": "Samo o sobě to podvod neznamená, jen opatrnost.", "action": "Nezadávejte citlivé údaje, dokud si nejste jistí." },
+      "en": { "title": "Frequently abused .{tld} ending", "observation": "The address ends in .{tld}, which scammers abuse more than most endings.", "implication": "That alone is no proof of fraud, just a reason for care.", "action": "Don't enter sensitive details until you're sure." }
+    },
+    "url.host.free_hosting": {
+      "cs": { "title": "Web na bezplatném hostingu", "observation": "Stránka běží na službě {provider}, kde si web může zdarma založit kdokoli.", "implication": "Firmy a úřady používají vlastní domény.", "action": "Hledejte oficiální adresu firmy." },
+      "en": { "title": "Site on free hosting", "observation": "The page runs on {provider}, where anyone can publish a site for free.", "implication": "Companies and authorities use their own domains.", "action": "Look up the company's official address." }
+    },
+    "url.host.random_label": {
+      "cs": { "title": "Náhodně vypadající adresa", "observation": "Adresa obsahuje dlouhý nebo nahodilý řetězec znaků.", "implication": "Podvodníci adresy často generují hromadně.", "action": "Buďte opatrní." },
+      "en": { "title": "Random-looking address", "observation": "The address contains a long or random-looking string.", "implication": "Scammers often generate addresses in bulk.", "action": "Be careful." }
+    },
+    "url.domain.age_lt7d": {
+      "cs": { "title": "Doména je stará jen {days}", "observation": "Doména {domain} byla zaregistrována {date} (zdroj: {registry}).", "implication": "Podvodné weby často žijí jen pár dní.", "action": "U neznámých nových webů nic neplaťte." },
+      "en": { "title": "The domain is only {days} old", "observation": "{domain} was registered on {date} (source: {registry}).", "implication": "Scam sites often live for just a few days.", "action": "Don't pay on unknown brand-new sites." }
+    },
+    "url.domain.age_lt30d": {
+      "cs": { "title": "Nová doména", "observation": "Doména {domain} existuje méně než měsíc (registrace {date}).", "implication": "Podvodné weby bývají čerstvé.", "action": "Buďte opatrní s platbami." },
+      "en": { "title": "New domain", "observation": "{domain} is less than a month old (registered {date}).", "implication": "Scam sites tend to be fresh.", "action": "Be careful with payments." }
+    },
+    "url.transport.http": {
+      "cs": { "title": "Nešifrovaný odkaz", "observation": "Odkaz používá http:// bez šifrování.", "implication": "Obsah může kdokoli po cestě změnit.", "action": "Nezadávejte hesla ani platební údaje." },
+      "en": { "title": "Unencrypted link", "observation": "The link uses http:// without encryption.", "implication": "Anyone along the way could change the content.", "action": "Don't enter passwords or payment details." }
+    },
+    "url.transport.ip_literal": {
+      "cs": { "title": "Adresa je jen číslo (IP)", "observation": "Odkaz vede na IP adresu {ip} místo názvu webu.", "implication": "Seriózní služby takové adresy pro veřejnost nepoužívají.", "action": "Neotevírejte." },
+      "en": { "title": "The address is just a number (IP)", "observation": "The link points to the IP address {ip} instead of a site name.", "implication": "Legitimate public services don't use such addresses.", "action": "Don't open it." }
+    },
+    "url.transport.unusual_port": {
+      "cs": { "title": "Neobvyklý port", "observation": "Odkaz používá port {port}.", "implication": "Běžné weby port v adrese neuvádějí.", "action": "Buďte opatrní." },
+      "en": { "title": "Unusual port", "observation": "The link uses port {port}.", "implication": "Ordinary websites don't put a port in the address.", "action": "Be careful." }
+    },
+    "url.identity.brand_lookalike": {
+      "cs": { "title": "Napodobuje značku {brand}", "observation": "Adresa {domain} připomíná značku {brand}, ale nepatří jí.", "implication": "Podvodníci tak budí důvěru.", "action": "Použijte oficiální web {official} nebo aplikaci." },
+      "en": { "title": "Imitates {brand}", "observation": "{domain} looks like {brand} but doesn't belong to it.", "implication": "Scammers do this to look trustworthy.", "action": "Use the official site {official} or app." }
+    },
+    "url.identity.userinfo_trick": {
+      "cs": { "title": "Klamavá adresa se zavináčem", "observation": "Adresa začíná „{fake}@“, ale ve skutečnosti vede na {real}.", "implication": "Část před zavináčem prohlížeč ignoruje — slouží jen k oklamání.", "action": "Neotevírejte." },
+      "en": { "title": "Deceptive address with an @", "observation": "The address starts with “{fake}@” but actually leads to {real}.", "implication": "Browsers ignore everything before the @ — it's only there to fool you.", "action": "Don't open it." }
+    },
+    "url.identity.confusable_idn": {
+      "cs": { "title": "Falešná písmena v adrese", "observation": "Adresa {domain} obsahuje znaky z jiné abecedy, které vypadají jako „{looksLike}“.", "implication": "Na první pohled ji od skutečné nerozeznáte.", "action": "Otevřete oficiální web ručně." },
+      "en": { "title": "Fake letters in the address", "observation": "{domain} contains characters from another alphabet that look like “{looksLike}”.", "implication": "At first glance it's indistinguishable from the real one.", "action": "Type the official address yourself." }
+    },
+    "url.identity.false_official": {
+      "cs": { "title": "Vydává se za značku {brand}", "observation": "Stránka používá značku {brand}, ale běží na cizí doméně {domain}.", "implication": "Skutečná služba sídlí na {official}.", "action": "Nic nezadávejte. Použijte oficiální aplikaci." },
+      "en": { "title": "Pretends to be {brand}", "observation": "The page uses the {brand} brand but runs on the unrelated domain {domain}.", "implication": "The real service lives at {official}.", "action": "Enter nothing. Use the official app." }
+    },
+    "page.solicit.credentials_unrelated": {
+      "cs": { "title": "Chce údaje, které nesouvisí s nabídkou", "observation": "Stránka chce {fields}, i když to k nabízené službě není potřeba.", "implication": "Takto se kradou přihlašovací a platební údaje.", "action": "Nic nevyplňujte." },
+      "en": { "title": "Asks for details unrelated to the offer", "observation": "The page asks for {fields} although the offered service doesn't need it.", "implication": "This is how login and payment details get stolen.", "action": "Don't fill anything in." }
+    },
+    "page.solicit.card_false_identity": {
+      "cs": { "title": "Chce číslo karty pod cizím jménem", "observation": "Stránka vydávající se za značku {brand} chce číslo platební karty.", "implication": "Údaje z karty by získali podvodníci.", "action": "Kartu nezadávejte. Plaťte jen v oficiální aplikaci." },
+      "en": { "title": "Asks for your card under a false name", "observation": "A page pretending to be {brand} asks for your card number.", "implication": "Scammers would get your card details.", "action": "Don't enter your card. Pay only in the official app." }
+    },
+    "page.solicit.recovery_secret": {
+      "cs": { "title": "Chce obnovovací frázi nebo kódy", "observation": "Stránka žádá {what}.", "implication": "S tím by kdokoli převzal váš účet nebo peníze.", "action": "Nikdy nezadávejte." },
+      "en": { "title": "Asks for a recovery phrase or codes", "observation": "The page asks for {what}.", "implication": "With it, anyone could take over your account or money.", "action": "Never enter it." }
+    },
+    "page.solicit.deceptive_subscription": {
+      "cs": { "title": "Skryté předplatné", "observation": "Stránka slibuje „{promise}“, ale drobným písmem uvádí: „{offer}“.", "implication": "Jde nejspíš o předplatné účtované přes vašeho operátora.", "action": "Nezadávejte telefonní číslo ani kód z SMS." },
+      "en": { "title": "Hidden subscription", "observation": "The page promises “{promise}” but the small print says: “{offer}”.", "implication": "This is most likely a subscription billed through your mobile operator.", "action": "Don't enter your phone number or an SMS code." }
+    },
+    "ocr.domain_mismatch": {
+      "cs": { "title": "Nápis nesouhlasí s kódem", "observation": "Vedle kódu je napsáno {printed}, ale kód vede na {actual}.", "implication": "Kód mohl někdo přelepit.", "action": "Zkontrolujte, jestli nejde o nálepku přes původní kód." },
+      "en": { "title": "Printed text doesn't match the code", "observation": "The text next to the code says {printed}, but the code leads to {actual}.", "implication": "Someone may have stuck a new code over the original.", "action": "Check whether the code is a sticker on top of the original." }
+    },
+    "ocr.account_mismatch": {
+      "cs": { "title": "Číslo účtu nesouhlasí", "observation": "Vytištěný účet {printed} se liší od účtu v kódu {actual}.", "implication": "Kód mohl někdo podvrhnout.", "action": "Plaťte podle vytištěných údajů, ne podle kódu." },
+      "en": { "title": "Account number doesn't match", "observation": "The printed account {printed} differs from the account in the code, {actual}.", "implication": "The code may have been swapped.", "action": "Pay using the printed details, not the code." }
+    },
+    "ocr.amount_mismatch": {
+      "cs": { "title": "Částka nesouhlasí", "observation": "Vytištěná částka {printed} se liší od částky v kódu {actual}.", "implication": "Kód mohl někdo změnit.", "action": "Zkontrolujte částku před platbou." },
+      "en": { "title": "Amount doesn't match", "observation": "The printed amount {printed} differs from the amount in the code, {actual}.", "implication": "The code may have been altered.", "action": "Check the amount before paying." }
+    },
+    "intel.quad9_block": {
+      "cs": { "title": "Bezpečnostní DNS doménu blokuje", "observation": "Neziskový bezpečnostní DNS Quad9 označuje {domain} za škodlivou.", "implication": "Doména je na seznamech hrozeb.", "action": "Neotevírejte." },
+      "en": { "title": "Security DNS blocks this domain", "observation": "The non-profit security DNS Quad9 marks {domain} as malicious.", "implication": "The domain is on threat lists.", "action": "Don't open it." }
+    },
+    "intel.certpl_listed": {
+      "cs": { "title": "Na varovném seznamu CERT Polska", "observation": "Doména {domain} je na veřejném varovném seznamu CERT.PL.", "implication": "Byla ověřena jako podvodná.", "action": "Neotevírejte." },
+      "en": { "title": "On CERT Polska's warning list", "observation": "{domain} is on CERT.PL's public warning list.", "implication": "It has been verified as fraudulent.", "action": "Don't open it." }
+    },
+    "pay.safe_account_instruction": {
+      "cs": { "title": "Výzva k převodu „do bezpečí“", "observation": "Text říká: „{text}“.", "implication": "Banka ani policie vás nikdy nežádá převést peníze na „bezpečný účet“.", "action": "Nic neposílejte a zavolejte na číslo své banky z její karty nebo webu." },
+      "en": { "title": "Request to move money “to safety”", "observation": "The text says: “{text}”.", "implication": "Neither your bank nor the police will ever ask you to move money to a “safe account”.", "action": "Send nothing and call your bank using the number on its card or website." }
+    },
+    "pay.state_claim_bank_mismatch": {
+      "cs": { "title": "Úřad s účtem u komerční banky", "observation": "Kód tvrdí, že platíte instituci {institution}, ale účet je u {bank} ({bankCode}).", "implication": "Státní instituce mají účty u České národní banky (kód 0710).", "action": "Ověřte číslo účtu na oficiálním webu úřadu." },
+      "en": { "title": "An authority with a commercial bank account", "observation": "The code claims you're paying {institution}, but the account is at {bank} ({bankCode}).", "implication": "Czech state institutions bank with the Czech National Bank (code 0710).", "action": "Check the account number on the authority's official website." }
+    },
+    "pay.context_mismatch": {
+      "cs": { "title": "Zahraniční účet pro českou službu", "observation": "Platba „{text}“ má jít na zahraniční účet ({country}).", "implication": "Česká města a úřady vybírají přes české účty.", "action": "Plaťte přes oficiální aplikaci nebo automat." },
+      "en": { "title": "Foreign account for a Czech service", "observation": "The payment “{text}” goes to a foreign account ({country}).", "implication": "Czech cities and authorities collect money through Czech accounts.", "action": "Pay through the official app or machine." }
+    },
+    "pay.mule_account_reviewed": {
+      "cs": { "title": "Účet nahlášený jako podvodný", "observation": "Účet {account} je v ověřené databázi podvodných účtů.", "implication": "Peníze by skončily u podvodníků.", "action": "Neplaťte." },
+      "en": { "title": "Account reported as fraudulent", "observation": "The account {account} is in a reviewed database of fraudulent accounts.", "implication": "Your money would end up with scammers.", "action": "Don't pay." }
+    },
+    "sms.prefilled_premium": {
+      "cs": { "title": "Předvyplněná placená SMS", "observation": "Kód připraví SMS na prémiové číslo {number}.", "implication": "Placené SMS v QR kódech jsou častou pastí.", "action": "SMS neposílejte, pokud přesně nevíte, za co platíte." },
+      "en": { "title": "Pre-filled premium SMS", "observation": "The code prepares an SMS to the premium number {number}.", "implication": "Premium SMS in QR codes are a common trap.", "action": "Don't send it unless you know exactly what you're paying for." }
+    },
+    "sms.activation_keyword": {
+      "cs": { "title": "SMS obsahuje slovo {keyword}", "observation": "Text „{body}“ může potvrdit objednávku nebo předplatné.", "implication": "Odesláním byste mohli souhlasit s opakovanými platbami.", "action": "Neposílejte." },
+      "en": { "title": "The SMS contains the word {keyword}", "observation": "The text “{body}” may confirm an order or subscription.", "implication": "Sending it could mean agreeing to recurring charges.", "action": "Don't send it." }
+    },
+    "sms.deceptive_inducement": {
+      "cs": { "title": "Klamavé lákadlo", "observation": "Kód slibuje „{promise}“, ale vede na placenou SMS.", "implication": "Typický trik podvodných předplatných.", "action": "Neposílejte." },
+      "en": { "title": "Deceptive lure", "observation": "The code promises “{promise}” but leads to a premium SMS.", "implication": "A typical fake-subscription trick.", "action": "Don't send it." }
+    },
+    "sms.purpose_mismatch": {
+      "cs": { "title": "Neodpovídá účelu", "observation": "Kód u {context} vede na placenou SMS {number}.", "implication": "To s nabízenou službou nesouvisí.", "action": "Neposílejte." },
+      "en": { "title": "Doesn't match the purpose", "observation": "A code at {context} leads to the premium SMS {number}.", "implication": "That has nothing to do with the offered service.", "action": "Don't send it." }
+    },
+    "sms.reviewed_abuse": {
+      "cs": { "title": "Číslo nahlášené jako podvodné", "observation": "Číslo {number} je v ověřené databázi podvodných služeb.", "implication": "Platby by šly podvodníkům.", "action": "Neposílejte." },
+      "en": { "title": "Number reported as fraudulent", "observation": "{number} is in a reviewed database of abusive services.", "implication": "Payments would go to scammers.", "action": "Don't send it." }
+    },
+    "phone.foreign_prefix": {
+      "cs": { "title": "Mezinárodní číslo {cc}", "observation": "Číslo patří do země {country}.", "implication": "Hovory tam mohou být velmi drahé; takto funguje podvod „prozvonění“.", "action": "Nevolejte zpět neznámým zahraničním číslům." },
+      "en": { "title": "International number {cc}", "observation": "The number belongs to {country}.", "implication": "Calls there can be very expensive; this is how “missed call” scams work.", "action": "Don't call back unknown foreign numbers." }
+    }
+  },
+  "consequences": {
+    "csq.subscription_charge": { "severity": "critical",
+      "cs": { "title": "Na stránce je placené předplatné", "text": "Stránka uvádí: „{offer}“. Platba by se mohla strhávat z vašeho telefonního účtu." },
+      "en": { "title": "The page contains a paid subscription", "text": "The page states: “{offer}”. It could be charged to your phone bill." } },
+    "csq.billing_gateway": { "severity": "critical",
+      "cs": { "title": "Další krok je platební brána operátora", "text": "Odkaz míří na {host}. Tam by se mohla platba strhnout z vašeho telefonního účtu. Stránku jsme nenačetli, abychom ochránili vaše číslo." },
+      "en": { "title": "The next step is an operator payment gateway", "text": "The link heads to {host}, where a charge could be added to your phone bill. We didn't load it, to protect your number." } },
+    "csq.premium_sms": { "severity": "critical",
+      "cs": { "title": "Placená SMS: {price}", "text": "Číslo {number} je prémiové ({category}). {detail}" },
+      "en": { "title": "Premium SMS: {price}", "text": "{number} is a premium number ({category}). {detail}" } },
+    "csq.premium_sms_order": { "severity": "warning",
+      "cs": { "title": "Placená SMS — cenu z čísla nepoznáme", "text": "Číslo {number} je objednávkové číslo prémiových služeb ({category}). Cenu stanovuje služba." },
+      "en": { "title": "Premium SMS — the price isn't visible", "text": "{number} is an ordering number for premium services ({category}). The service sets the price." } },
+    "csq.charity_sms": { "severity": "info",
+      "cs": { "title": "Dárcovská SMS", "text": "Číslo 87777 je dárcovská SMS (DMS). Jednorázová DMS stojí obvykle 30, 60 nebo 90 Kč; „DMS ROK“ se strhává každý měsíc." },
+      "en": { "title": "Charity SMS", "text": "87777 is the charity SMS number (DMS). A one-off DMS usually costs 30, 60 or 90 CZK; “DMS ROK” is charged every month." } },
+    "csq.premium_call": { "severity": "critical",
+      "cs": { "title": "Placená linka: {price}", "text": "Číslo {number} je prémiová linka ({category})." },
+      "en": { "title": "Premium line: {price}", "text": "{number} is a premium-rate line ({category})." } },
+    "csq.international_call": { "severity": "warning",
+      "cs": { "title": "Mezinárodní hovor — cenu neznáme", "text": "Volání do země {country} může být velmi drahé." },
+      "en": { "title": "International call — price unknown", "text": "Calling {country} can be very expensive." } },
+    "csq.call_forwarding": { "severity": "critical",
+      "cs": { "title": "Kód přesměruje vaše hovory", "text": "Kód by přesměroval vaše hovory na {target}. Kdo číslo ovládá, může přebírat vaše hovory i ověřovací kódy." },
+      "en": { "title": "This code forwards your calls", "text": "The code would forward your calls to {target}. Whoever controls that number could take your calls and verification codes." } },
+    "csq.recurring_payment": { "severity": "warning",
+      "cs": { "title": "Trvalý příkaz: {amount} {frequency}", "text": "Platba se bude opakovat, dokud ji nezrušíte ve své bance." },
+      "en": { "title": "Standing order: {amount} {frequency}", "text": "The payment repeats until you cancel it in your bank." } },
+    "csq.direct_debit": { "severity": "warning",
+      "cs": { "title": "Souhlas s inkasem: až {amount}", "text": "Příjemce si bude moci sám strhávat peníze z vašeho účtu ({validity})." },
+      "en": { "title": "Direct debit consent: up to {amount}", "text": "The recipient could take money from your account themselves ({validity})." } },
+    "csq.instant_payment": { "severity": "info",
+      "cs": { "title": "Okamžitá platba", "text": "Peníze dorazí během pár sekund a nejde je vrátit." },
+      "en": { "title": "Instant payment", "text": "The money arrives within seconds and can't be recalled." } },
+    "csq.irreversible_crypto": { "severity": "warning",
+      "cs": { "title": "Kryptoměnová platba je nevratná", "text": "Odeslané kryptoměny nikdo nevrátí. Podvodníci je proto mají rádi." },
+      "en": { "title": "Crypto payments are irreversible", "text": "Nobody can return sent crypto — which is why scammers love it." } },
+    "csq.token_contract": { "severity": "warning",
+      "cs": { "title": "Adresa v kódu je token, ne příjemce", "text": "Posíláte {amount} tokenu {token}. Skutečný příjemce je {recipient}." },
+      "en": { "title": "The address in the code is a token, not the recipient", "text": "You'd send {amount} of the {token} token. The actual recipient is {recipient}." } },
+    "csq.app_install": { "severity": "critical",
+      "cs": { "title": "Instaluje aplikaci mimo App Store", "text": "Aplikace mimo App Store neprošla kontrolou Applu a může číst vaše data." },
+      "en": { "title": "Installs an app outside the App Store", "text": "Apps from outside the App Store aren't reviewed by Apple and may read your data." } },
+    "csq.profile_install": { "severity": "critical",
+      "cs": { "title": "Instaluje konfigurační profil", "text": "Profil může přesměrovat váš internetový provoz, nainstalovat certifikát nebo převzít správu telefonu." },
+      "en": { "title": "Installs a configuration profile", "text": "A profile can redirect your internet traffic, install a certificate or take over device management." } },
+    "csq.apk_download": { "severity": "warning",
+      "cs": { "title": "Stahuje aplikaci pro Android", "text": "Na iPhonu nejde nainstalovat. Pokud máte Android, aplikace mimo Google Play neinstalujte." },
+      "en": { "title": "Downloads an Android app", "text": "It can't be installed on iPhone. On Android, don't install apps from outside Google Play." } },
+    "csq.calendar_subscription": { "severity": "warning",
+      "cs": { "title": "Přihlásí kalendář k odběru", "text": "Do kalendáře by vám mohly chodit podvodné události s odkazy." },
+      "en": { "title": "Subscribes your calendar", "text": "Fake events with links could start appearing in your calendar." } },
+    "csq.account_access": { "severity": "critical",
+      "cs": { "title": "Tento kód může zpřístupnit váš účet", "text": "{effect} Pokračujte jen tehdy, pokud se právě sami přihlašujete na svém zařízení." },
+      "en": { "title": "This code can give access to your account", "text": "{effect} Continue only if you're signing in on your own device right now." } },
+    "csq.twofa_setup": { "severity": "warning",
+      "cs": { "title": "Přidá ověřovací kód (2FA)", "text": "Pokračujte jen tehdy, pokud právě sami nastavujete dvoufázové ověření." },
+      "en": { "title": "Adds a verification code (2FA)", "text": "Continue only if you're setting up two-factor authentication yourself right now." } },
+    "csq.twofa_secrets": { "severity": "critical",
+      "cs": { "title": "Obsahuje tajné klíče k {count} účtům", "text": "Kdo kód naskenuje, získá vaše ověřovací kódy. Nikomu ho neukazujte." },
+      "en": { "title": "Contains secret keys for {count} accounts", "text": "Whoever scans this code gets your verification codes. Never show it to anyone." } },
+    "csq.seed_phrase": { "severity": "critical",
+      "cs": { "title": "Obnovovací fráze kryptopeněženky", "text": "Kdo ji zná, ovládá peníze v peněžence. Nikdy ji nesdílejte ani nezadávejte na web." },
+      "en": { "title": "Crypto wallet recovery phrase", "text": "Whoever knows it controls the money in the wallet. Never share it or type it into a website." } },
+    "csq.wallet_connect": { "severity": "critical",
+      "cs": { "title": "Propojí kryptopeněženku s webem", "text": "Web by pak mohl žádat o podpisy transakcí." },
+      "en": { "title": "Connects a crypto wallet to a website", "text": "The website could then request transaction signatures." } },
+    "csq.passkey_nearby": { "severity": "info",
+      "cs": { "title": "Přihlášení passkey na počítači vedle vás", "text": "Funguje jen v dosahu Bluetooth. Pokračujte, pokud se právě přihlašujete na počítači před sebou." },
+      "en": { "title": "Passkey sign-in on a computer next to you", "text": "It only works within Bluetooth range. Continue if you're signing in on the computer in front of you." } },
+    "csq.open_wifi": { "severity": "warning",
+      "cs": { "title": "Nešifrovaná Wi‑Fi", "text": "Provoz v síti může kdokoli poblíž odposlouchávat. Podvodníci zakládají falešné „free“ sítě." },
+      "en": { "title": "Unencrypted Wi‑Fi", "text": "Anyone nearby can eavesdrop on this network. Scammers set up fake “free” networks." } },
+    "csq.weak_wifi": { "severity": "warning",
+      "cs": { "title": "Slabě šifrovaná Wi‑Fi (WEP)", "text": "Šifrování WEP se dá prolomit během minut." },
+      "en": { "title": "Weakly encrypted Wi‑Fi (WEP)", "text": "WEP encryption can be cracked in minutes." } },
+    "csq.executable_content": { "severity": "critical",
+      "cs": { "title": "Kód obsahuje spustitelný obsah", "text": "{what} Nikdy ho nespouštíme ani neotevíráme — ukážeme ho jen jako text." },
+      "en": { "title": "The code contains executable content", "text": "{what} We never run or open it — we only show it as text." } },
+    "csq.invalid_payment": { "severity": "critical",
+      "cs": { "title": "Platbu nelze provést", "text": "{reason} Kód je poškozený nebo pozměněný." },
+      "en": { "title": "This payment can't be made", "text": "{reason} The code is damaged or altered." } },
+    "csq.personal_data": { "severity": "info",
+      "cs": { "title": "Obsahuje osobní údaje", "text": "{what} Obsah kódu neukládáme do historie." },
+      "en": { "title": "Contains personal data", "text": "{what} We don't store its content in history." } },
+    "csq.group_invite": { "severity": "warning",
+      "cs": { "title": "Pozvánka do skupiny", "text": "Podvodné „investiční“ skupiny lákají přes pozvánky do chatů." },
+      "en": { "title": "Group invitation", "text": "Fake “investment” groups recruit through chat invitations." } },
+    "csq.opens_chat": { "severity": "info",
+      "cs": { "title": "Otevře chat", "text": "Otevře {service} s {target}." },
+      "en": { "title": "Opens a chat", "text": "Opens {service} with {target}." } }
+  },
+  "checks": {
+    "chk.https_ok": { "cs": "Spojení je šifrované (HTTPS)", "en": "The connection is encrypted (HTTPS)" },
+    "chk.https_upgraded": { "cs": "Zkontrolovali jsme HTTPS variantu; původní http odkaz jsme nenačítali", "en": "We checked the HTTPS variant; the original http link was not loaded" },
+    "chk.redirects": { "cs": "Sledovali jsme přesměrování: {count}", "en": "Redirects followed: {count}" },
+    "chk.shortener_resolved": { "cs": "Zkracovač {host} jsme rozbalili až na cíl", "en": "We expanded the {host} short link to its destination" },
+    "chk.domain_age": { "cs": "Doména je registrovaná od {date} ({registry})", "en": "Domain registered since {date} ({registry})" },
+    "chk.quad9_ok": { "cs": "Quad9: doména není na seznamech hrozeb", "en": "Quad9: the domain isn't on threat lists" },
+    "chk.allowlisted_parking": { "cs": "Adresa patří oficiálnímu parkování ({city})", "en": "The address belongs to official parking ({city})" },
+    "chk.allowlisted_gov": { "cs": "Adresa patří státní správě (gov.cz)", "en": "The address belongs to the Czech government (gov.cz)" },
+    "chk.page_extract": { "cs": "Přečetli jsme, co stránka chce: {summary}", "en": "We read what the page asks for: {summary}" },
+    "chk.iban_valid": { "cs": "Číslo účtu má platný kontrolní součet", "en": "The account number has a valid checksum" },
+    "chk.bank_known": { "cs": "Banka: {bank}", "en": "Bank: {bank}" },
+    "chk.format_only": { "cs": "Správný formát účtu nepotvrzuje, komu účet patří", "en": "A valid format doesn't confirm who owns the account" },
+    "chk.crc_missing": { "cs": "Kontrolní součet CRC32 v kódu chybí (to je v pořádku)", "en": "No CRC32 checksum in the code (that's fine)" },
+    "chk.no_premium": { "cs": "Číslo není prémiové", "en": "The number isn't premium-rate" },
+    "chk.no_links": { "cs": "Kód neobsahuje žádné odkazy", "en": "The code contains no links" },
+    "chk.fields_checked": { "cs": "Zkontrolovali jsme telefonní čísla a odkazy uvnitř", "en": "We checked the phone numbers and links inside" },
+    "chk.wpa_ok": { "cs": "Síť je šifrovaná ({security})", "en": "The network is encrypted ({security})" },
+    "chk.ocr_none": { "cs": "Vedle kódu jsme nenašli text k porovnání", "en": "No printed text next to the code to compare" },
+    "chk.sensitive_local": { "cs": "Kód zůstává jen v telefonu — nic jsme neodesílali", "en": "The code stays on your phone — nothing was sent" }
+  },
+  "incomplete": {
+    "inc.offline": { "cs": "Jste offline — web jsme nemohli zkontrolovat.", "en": "You're offline — we couldn't check the website." },
+    "inc.timeout": { "cs": "Web neodpověděl včas.", "en": "The website didn't respond in time." },
+    "inc.billing_stop": { "cs": "Zastavili jsme se před platební bránou operátora.", "en": "We stopped before an operator payment gateway." },
+    "inc.https_failed": { "cs": "Nešifrovaný odkaz — HTTPS varianta nefunguje, cíl neznáme.", "en": "Unencrypted link — the HTTPS variant doesn't work, so the destination is unknown." },
+    "inc.token_skipped": { "cs": "Odkaz vypadá jako jednorázový (obsahuje přihlašovací token). Nenačítáme ho automaticky.", "en": "The link looks single-use (it contains a login token). We don't load it automatically." },
+    "inc.auth_path_skipped": { "cs": "Odkaz vede na přihlášení nebo ověření. Nenačítáme ho automaticky.", "en": "The link leads to a sign-in or verification page. We don't load it automatically." },
+    "inc.checks_disabled": { "cs": "Kontrola odkazu je v Nastavení vypnutá.", "en": "Link checking is turned off in Settings." },
+    "inc.js_only": { "cs": "Stránka přesměrovává jen skriptem — další cíl neznáme.", "en": "The page redirects only via script — the next destination is unknown." }
+  }
+}

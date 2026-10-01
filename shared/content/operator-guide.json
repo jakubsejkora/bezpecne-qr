@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "retrieved": "2026-09-29",
+  "reviewBy": "2027-03-29",
+  "note": "Steps come from the operators' own help pages (sources listed per operator). Items marked verified=false could not be confirmed from a primary source and are shown with 'ověřte u operátora'.",
+  "intro": {
+    "cs": "Podvodné „předplatné za 99 Kč týdně“ se strhává přes vašeho mobilního operátora. Nejspolehlivější ochrana je zablokovat platby třetím stranám. Blokaci musí operátor zřídit zdarma.",
+    "en": "The fake “99 CZK a week” subscriptions are charged through your mobile operator. The most reliable protection is to block third-party payments. Operators must set this up for free."
+  },
+  "operators": [
+    {
+      "id": "o2", "name": "O2", "verified": true,
+      "sources": ["https://www.o2.cz/podpora/financni-sluzby/platba-pres-sms", "https://www.o2.cz/osobni/platba-pres-o2", "https://www.o2.cz/podpora/financni-sluzby/platba-pres-o2-vyuctovani"],
+      "steps": {
+        "cs": [
+          "Prémiové SMS: v samoobsluze Moje O2 na webu (ne v aplikaci) zvolte povolit vše / jen 902 / vše kromě 909 / blokovat vše. Volba „jen 902“ předplatné účtované přes 902 nezastaví.",
+          "Platby přes internet (m-platby): na moje.o2platba.cz zablokujte všechny platby nebo jednotlivé obchodníky.",
+          "Aktivní předplatné zrušíte SMS „STOP ALL“ na prvních 5 číslic čísla, ze kterého chodí platby.",
+          "Útratu zkontrolujete kódem *123*#. Zákaznická linka 800 02 02 02."
+        ],
+        "en": [
+          "Premium SMS: in Moje O2 on the web (not in the app) choose allow all / only 902 / all except 909 / block all. “Only 902” won't stop a subscription billed via 902.",
+          "Internet payments (m-payments): at moje.o2platba.cz block all payments or individual merchants.",
+          "Cancel an active subscription by sending “STOP ALL” to the first 5 digits of the number charging you.",
+          "Check spending with *123*#. Customer line 800 02 02 02."
+        ]
+      }
+    },
+    {
+      "id": "tmobile", "name": "T-Mobile", "verified": true,
+      "sources": ["https://www.t-mobile.cz/m-platba", "https://www.t-mobile.cz/platebni-a-premium-sms"],
+      "steps": {
+        "cs": [
+          "V aplikaci nebo na webu Můj T-Mobile otevřete Služby → Platební služby. Tam zablokujete m-platbu a uvidíte aktivní předplatná.",
+          "Zákaznická linka 4603. Dětské a studentské tarify mají platby blokované automaticky.",
+          "Reklamaci podejte písemně do 2 měsíců od vyúčtování."
+        ],
+        "en": [
+          "In the Můj T-Mobile app or website open Services → Payment services. There you can block m-payments and see active subscriptions.",
+          "Customer line 4603. Children's and student plans have payments blocked automatically.",
+          "File a complaint in writing within 2 months of the bill."
+        ]
+      }
+    },
+    {
+      "id": "vodafone", "name": "Vodafone", "verified": true,
+      "sources": ["https://www.vodafone.cz/pece/tarify-sluzby/sms-a-mms-zpravy/blokovani-plateb-tretich-stran/", "https://www.vodafone.cz/pece/vyuctovani-platby-kredit/platby-mobilem/m-platba/"],
+      "steps": {
+        "cs": [
+          "V Můj Vodafone (web nebo aplikace Můj Vodafone+) otevřete Služby → Blokování a zapněte blokaci Premium SMS, m-platby a Audiotexu (blokuje se celá kategorie).",
+          "Předplatná placená m-platbou spravujete na payments.vodafone.com/cz.",
+          "Zákaznická linka *77 nebo 800 77 00 77."
+        ],
+        "en": [
+          "In Můj Vodafone (web or the Můj Vodafone+ app) open Services → Blocking and block Premium SMS, m-payments and Audiotex (whole categories).",
+          "Manage m-payment subscriptions at payments.vodafone.com/cz.",
+          "Customer line *77 or 800 77 00 77."
+        ]
+      }
+    },
+    {
+      "id": "kaktus", "name": "Kaktus", "verified": false,
+      "sources": ["https://www.mujkaktus.cz/m-platba"],
+      "steps": {
+        "cs": ["M-Platbu zapnete nebo vypnete a nastavíte denní limit ve svém účtu Můj Kaktus. Ověřte u operátora."],
+        "en": ["Turn M-Platba on or off and set a daily limit in your Můj Kaktus account. Confirm with the operator."]
+      }
+    },
+    {
+      "id": "tesco", "name": "Tesco Mobile", "verified": false,
+      "sources": ["https://tescomobile.cz/otazky/"],
+      "steps": {
+        "cs": ["Tesco Mobile m-platby nepodporuje, prémiové SMS ale fungují. O blokaci požádejte na lince 841 11 22 55. Ověřte u operátora."],
+        "en": ["Tesco Mobile doesn't support m-payments, but premium SMS work. Ask for a block on 841 11 22 55. Confirm with the operator."]
+      }
+    },
+    {
+      "id": "gomobil", "name": "GoMobil", "verified": true,
+      "sources": ["https://napoveda.gomobil.cz/tema/nastaveni-a-parametry-sluzby-sim-karta/co-to-jsou-sluzby-tretich-stran-premiove-sluzby"],
+      "steps": {
+        "cs": ["Prémiová čísla pro volání jsou blokovaná. SMS na 902 jsou zapnuté u přenesených čísel — zkontrolujte nastavení."],
+        "en": ["Premium call numbers are blocked. SMS to 902 are enabled for ported numbers — check your settings."]
+      }
+    },
+    {
+      "id": "others", "name": { "cs": "Ostatní virtuální operátoři", "en": "Other virtual operators" }, "verified": false,
+      "sources": ["https://ctu.gov.cz/mam-problem-se-sluzbami-3-stran"],
+      "steps": {
+        "cs": ["SAZKAmobil, ČEZ Mobil, Nej mobil a další: zavolejte na zákaznickou linku a požádejte o blokaci „plateb třetím stranám“. Podle ČTÚ ji musí zřídit zdarma."],
+        "en": ["SAZKAmobil, ČEZ Mobil, Nej mobil and others: call customer care and ask to block “third-party payments”. According to ČTÚ they must do it for free."]
+      }
+    }
+  ],
+  "tips": {
+    "cs": [
+      "Podvodné SMS přepošlete zdarma na číslo 7726 (funguje u všech operátorů).",
+      "Kdo stojí za prémiovým číslem, zjistíte na platmobilem.cz (katalog služeb a reklamační formulář).",
+      "Předplatné zrušíte SMS „STOP“ (nebo „STOP ALL“) na číslo, ze kterého chodí platby. Potvrzovací SMS je zdarma.",
+      "Pozor: blokace prémiových SMS zablokuje i SMS parkování a jízdenky (číslo 90206).",
+      "Reklamaci u operátora podejte do 2 měsíců. Spory řeší Česká obchodní inspekce, podvod oznamte Policii ČR (158)."
+    ],
+    "en": [
+      "Forward scam SMS for free to 7726 (works with every operator).",
+      "Find out who is behind a premium number at platmobilem.cz (service catalogue and complaint form).",
+      "Cancel a subscription by sending “STOP” (or “STOP ALL”) to the number charging you. The confirmation SMS is free.",
+      "Note: blocking premium SMS also blocks SMS parking and tickets (number 90206).",
+      "Complain to your operator within 2 months. Disputes go to the Czech Trade Inspection; report fraud to the Police (158)."
+    ]
+  }
+}
