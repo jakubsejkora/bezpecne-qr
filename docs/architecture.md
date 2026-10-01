@@ -7,11 +7,11 @@ shared/      rules (JSON), test corpus, content — the single source of truth f
 prototype/   interactive HTML prototype (no build step, works offline)
 scripts/     data generators, reference engine (engine.mjs), banking validators, version bump
 docs/        this documentation
-ios/         (M2+) XcodeGen project: app, ShareExtension, Packages/{BQCore, BQServices, BQUI}
+ios/         XcodeGen project: app and ShareExtension (skeleton since 0.0.2), Packages/{BQCore, BQServices, BQUI} from M2
 backend/     (M7) Cloudflare Worker + D1 + R2
 ```
 
-## iOS (planned, M2–M6)
+## iOS (skeleton in 0.0.2; the rest planned, M2–M6)
 
 - **BQCore** (Swift package, pure Swift, `swift test` on the Mac): classifier, sensitivity gate, parsers, validators, per-type engines and the rules loader. Rules are copied from `shared/` into the package resources.
 - **BQServices** (extension-safe):
@@ -27,7 +27,7 @@ backend/     (M7) Cloudflare Worker + D1 + R2
   - the reporting queue.
 - **ShareExtension:** images only in V1. It writes history through an App Group inbox.
 - **No third-party SDKs.**
-- **Release:** a local build → TestFlight (internal) with `xcodebuild archive` and `-exportArchive` (`destination=upload`). No CI.
+- **Release:** a local build → TestFlight (internal) with `scripts/testflight.sh` (`xcodebuild archive` and `-exportArchive`, `destination=upload`). No CI. See [`ios/README.md`](../ios/README.md).
 
 ## Backend (planned, M7)
 

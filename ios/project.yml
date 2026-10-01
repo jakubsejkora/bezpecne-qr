@@ -1,0 +1,89 @@
+# XcodeGen spec — the single definition of the Xcode project.
+# Regenerate with:  cd ios && mint run xcodegen generate
+# The generated BezpecneQR.xcodeproj and Info.plist files are not committed.
+name: BezpecneQR
+
+options:
+  bundleIdPrefix: cz.bezpecneqr
+  deploymentTarget:
+    iOS: "18.0"
+  developmentLanguage: cs
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+configFiles:
+  Debug: Config/Debug.xcconfig
+  Release: Config/Release.xcconfig
+
+settings:
+  base:
+    # scripts/bump-version.sh keeps MARKETING_VERSION in sync with /VERSION.
+    MARKETING_VERSION: "0.0.2"
+    # scripts/testflight.sh passes the real build number from ios/BUILD_NUMBER.
+    CURRENT_PROJECT_VERSION: 1
+
+targets:
+  BezpecneQR:
+    type: application
+    platform: iOS
+    sources:
+      - path: BezpecneQR
+        excludes: ["Info.plist"]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cz.bezpecneqr.app
+        # Hotspot Configuration (join Wi‑Fi from a code) + App Group shared with the share extension.
+        CODE_SIGN_ENTITLEMENTS: BezpecneQR/BezpecneQR.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    info:
+      path: BezpecneQR/Info.plist
+      properties:
+        CFBundleDisplayName: Bezpečné QR
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: cs
+        CFBundleLocalizations: [cs, en]
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # Only OS-provided TLS and signature verification are used.
+        ITSAppUsesNonExemptEncryption: false
+    dependencies:
+      - target: ShareExtension
+        embed: true
+
+  ShareExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ShareExtension
+        excludes: ["Info.plist"]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cz.bezpecneqr.app.share
+        CODE_SIGN_ENTITLEMENTS: ShareExtension/ShareExtension.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+    info:
+      path: ShareExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Bezpečné QR
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: cs
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsImageWithMaxCount: 1
+
+schemes:
+  BezpecneQR:
+    build:
+      targets:
+        BezpecneQR: all
+    run:
+      config: Debug
+    archive:
+      config: Release

@@ -8,6 +8,20 @@ All notable changes to Bezpečné QR are documented here.
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-10-02
+
+### Added
+- **iOS project skeleton** (`ios/`), with no scanner yet:
+  - XcodeGen spec (`project.yml`, XcodeGen pinned through Mint) for the app `cz.bezpecneqr.app` and the share extension `cz.bezpecneqr.app.share`: iOS 18.0+, iPhone only, Swift 6 with strict concurrency;
+  - placeholder screen with the Liquid Glass helper (`glassEffect` on iOS 26+, material fallback on iOS 18) and a stub share extension for images;
+  - entitlements (Hotspot Configuration, shared App Group), privacy manifests for both bundles and a placeholder app icon drawn by `scripts/make-app-icon.swift`;
+  - build and one-time setup guide (`ios/README.md`).
+- **TestFlight pipeline:** `scripts/testflight.sh` archives, signs and uploads from the Mac, with build numbers in `ios/BUILD_NUMBER`. `--ipa-only` and `--archive-only` stop before the upload; `--external` uploads a build that may leave internal testing.
+
+### Changed
+- `scripts/bump-version.sh` also updates the version shown in the README.
+- README, roadmap and architecture notes describe the iOS skeleton.
+
 ## [0.0.1] - 2026-09-29
 
 ### Added

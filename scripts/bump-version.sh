@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Bumps the repo version by +0.0.1, following the project rule:
 #   0.0.1 → 0.0.2 → … → 0.0.9 → 0.0.10 (never rolls over to 0.1.0 automatically).
-# Updates VERSION, the iOS MARKETING_VERSION (once ios/project.yml exists), adds a CHANGELOG
+# Updates VERSION, the iOS MARKETING_VERSION, the version line in the README, adds a CHANGELOG
 # section and regenerates the prototype data so the prototype shows the new version.
 #
 # Usage: scripts/bump-version.sh "Short summary of the change set"
@@ -16,6 +16,7 @@ echo "$next" > "$root/VERSION"
 if [ -f "$root/ios/project.yml" ]; then
   sed -i '' -E "s/(MARKETING_VERSION: *\"?)[0-9]+\.[0-9]+\.[0-9]+(\"?)/\1$next\2/" "$root/ios/project.yml"
 fi
+sed -i '' -E "s/(Verze \*\*)[0-9]+\.[0-9]+\.[0-9]+(\*\*)/\1$next\2/" "$root/README.md"
 
 python3 - "$root/CHANGELOG.md" "$next" "$(date +%Y-%m-%d)" "${1:-}" <<'PY'
 import sys
