@@ -16,7 +16,7 @@ All notable changes to Bezpečné QR are documented here.
   - placeholder screen with the Liquid Glass helper (`glassEffect` on iOS 26+, material fallback on iOS 18) and a stub share extension for images;
   - entitlements (Hotspot Configuration, shared App Group), privacy manifests for both bundles and a placeholder app icon drawn by `scripts/make-app-icon.swift`;
   - build and one-time setup guide (`ios/README.md`).
-- **TestFlight pipeline:** `scripts/testflight.sh` archives, signs and uploads from the Mac, with build numbers in `ios/BUILD_NUMBER`. `--ipa-only` and `--archive-only` stop before the upload; `--external` uploads a build that may leave internal testing.
+- **TestFlight pipeline:** `scripts/testflight.sh` archives, signs and uploads from the Mac, with build numbers in `ios/BUILD_NUMBER`. `--ipa-only` and `--archive-only` stop before the upload; `--external` uploads a build that may leave internal testing. Build 0.0.2 (1) of the placeholder app is the first upload.
 
 ### Changed
 - `scripts/bump-version.sh` also updates the version shown in the README.
