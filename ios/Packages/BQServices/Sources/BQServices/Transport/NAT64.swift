@@ -53,9 +53,11 @@ struct NAT64Prefix: Hashable, Sendable, CustomStringConvertible {
 struct TranslationContext: Sendable, Equatable {
     /// Discovered NAT64 prefixes. (The well-known 64:ff9b::/96 is also handled by `IPAddress.isPublic`.)
     var prefixes: [NAT64Prefix]
-    /// IPv6 addresses outside the prefixes are genuine and can be vetted with `isPublic`. False when
-    /// discovery failed, or on an IPv6-only path without a discovered prefix: a translator with an
-    /// unknown network-specific prefix may be in use there.
+    /// IPv6 answers may be used: the network's translation prefixes are known, so an answer inside
+    /// one is vetted by the IPv4 address it embeds and an answer outside is native. True only when
+    /// discovery found a prefix. Without one — no DNS64, or discovery failed — a translator with an
+    /// unknown network-specific prefix may still exist (also on dual-stack networks), so only IPv4
+    /// answers are used.
     var trustsIPv6: Bool
 
     /// Nothing known about translation: IPv6 answers are not trusted.
@@ -66,8 +68,6 @@ struct TranslationContext: Sendable, Equatable {
 struct PathSnapshot: Sendable, Equatable {
     /// Changes when the network changes (interfaces, gateways, address families).
     var signature: String
-    /// The path has IPv6 but no IPv4.
-    var ipv6Only: Bool
     /// Not `.unsatisfied` (a path that requires a connection, such as VPN on demand, counts).
     var usable: Bool
 }
@@ -98,7 +98,7 @@ final class SystemPathProvider: NetworkPathProviding {
         if let latest { return latest }
         // The first update arrives within milliseconds of starting; don't wait long for it.
         queue.asyncAfter(deadline: .now() + .milliseconds(500)) {
-            once.resume(PathSnapshot(signature: "unknown", ipv6Only: false, usable: true))
+            once.resume(PathSnapshot(signature: "unknown", usable: true))
         }
         return await withCheckedContinuation { once.install($0) }
     }
@@ -117,7 +117,6 @@ final class SystemPathProvider: NetworkPathProviding {
         let gateways = path.gateways.map { "\($0)" }.joined(separator: ",")
         return PathSnapshot(
             signature: "\(path.status)|v4=\(path.supportsIPv4)|v6=\(path.supportsIPv6)|\(interfaces)|\(gateways)",
-            ipv6Only: path.supportsIPv6 && !path.supportsIPv4,
             usable: path.status != .unsatisfied
         )
     }
@@ -153,7 +152,7 @@ actor TranslationPrefixes {
         } else {
             let resolver = self.resolver
             task = Task {
-                let (context, succeeded) = await TranslationPrefixes.discover(resolver: resolver, ipv6Only: path.ipv6Only)
+                let (context, succeeded) = await TranslationPrefixes.discover(resolver: resolver)
                 self.store(context, signature: path.signature, ttl: succeeded ? TranslationPrefixes.successTTL : TranslationPrefixes.failureTTL)
                 return context
             }
@@ -169,7 +168,7 @@ actor TranslationPrefixes {
 
     /// Resolves ipv4only.arpa. Its A records are 192.0.0.170/171; AAAA records exist only when a
     /// DNS64 synthesized them, and they reveal the prefix.
-    static func discover(resolver: any HostResolver, ipv6Only: Bool) async -> (TranslationContext, succeeded: Bool) {
+    static func discover(resolver: any HostResolver) async -> (TranslationContext, succeeded: Bool) {
         let addresses: [BQCore.IPAddress]
         do {
             addresses = try await resolver.resolve("ipv4only.arpa", deadline: .now + discoveryTimeout)
@@ -178,6 +177,6 @@ actor TranslationPrefixes {
         }
         var prefixes: [NAT64Prefix] = []
         for prefix in addresses.flatMap(NAT64Prefix.discovered(in:)) where !prefixes.contains(prefix) { prefixes.append(prefix) }
-        return (TranslationContext(prefixes: prefixes, trustsIPv6: !prefixes.isEmpty || !ipv6Only), true)
+        return (TranslationContext(prefixes: prefixes, trustsIPv6: !prefixes.isEmpty), true)
     }
 }

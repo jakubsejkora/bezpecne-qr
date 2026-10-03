@@ -34,11 +34,25 @@ struct LiveTests {
         #expect(ContinuousClock.now - timed < .milliseconds(1300))
     }
 
+    /// incomplete-chain.badssl.com omits its intermediate certificate. The system's default evaluation
+    /// downloads it (an unvetted request to a URL the peer chose); ours never does, so both clients fail.
+    @Test func noIssuerDownloads() async throws {
+        let url = URL(string: "https://incomplete-chain.badssl.com/")!
+        await #expect(throws: FetchError.tlsFailed) { try await SafeFetcher().fetch(FetchRequest(url: url, timeout: .seconds(5))) }
+        await #expect(throws: (any Error).self) { try await URLSessionEndpointClient.shared.send(URLRequest(url: url)) }
+        let (_, ok) = try await URLSessionEndpointClient.shared.send(URLRequest(url: URL(string: "https://dns.quad9.net/")!))
+        print("LIVE endpoint client with our trust evaluation, dns.quad9.net:", ok.statusCode)
+        #expect(ok.statusCode < 500)
+    }
+
     @Test func systemResolver() async throws {
         let addresses = try await SystemResolver().resolve("www.example.com", deadline: .now + .seconds(3))
         print("LIVE resolver www.example.com:", addresses.map(\.description))
         #expect(!addresses.isEmpty)
         #expect(addresses.allSatisfy { $0.isPublic })
+        await #expect(throws: FetchError.nameNotResolved) {
+            try await SystemResolver().resolve("neexistujici-domena-bq-2026.cz", deadline: .now + .seconds(3))
+        }
     }
 
     @Test func inspectPragueParking() async {

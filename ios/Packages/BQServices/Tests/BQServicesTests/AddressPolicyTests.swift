@@ -78,18 +78,15 @@ struct AddressPolicyTests {
     }
 
     @Test func discoveryContexts() async {
-        // No NAT64: ipv4only.arpa has only its A records.
-        let plain = TranslationPrefixes(resolver: FakeResolver(answers: noNAT64), paths: FakePaths())
-        #expect(await plain.context(deadline: .now + .seconds(2)) == TranslationContext(prefixes: [], trustsIPv6: true))
-        // DNS64 with a network-specific prefix.
-        let dns64 = FakeResolver(answers: ["ipv4only.arpa": ["2001:470:64::c000:aa", "2001:470:64::c000:ab", "192.0.0.170"]])
-        let nat64 = TranslationPrefixes(resolver: dns64, paths: FakePaths(ipv6Only: true))
+        // DNS64 with a network-specific prefix: IPv6 answers can be vetted.
+        let nat64 = TranslationPrefixes(resolver: FakeResolver(answers: nsp64), paths: FakePaths())
         let context = await nat64.context(deadline: .now + .seconds(2))
         #expect(context.prefixes.map(\.description) == ["2001:470:64::/96"])
         #expect(context.trustsIPv6)
-        // IPv6-only without a discovered prefix, and failed discovery anywhere: IPv6 is not trusted.
-        let noPrefix = TranslationPrefixes(resolver: FakeResolver(answers: noNAT64), paths: FakePaths(ipv6Only: true))
-        #expect(await noPrefix.context(deadline: .now + .seconds(2)) == .unknown)
+        // No prefix found — no DNS64 (dual-stack or not), or discovery failed: a translator with an
+        // unknown prefix may exist, so IPv6 answers are not trusted.
+        let plain = TranslationPrefixes(resolver: FakeResolver(answers: noNAT64), paths: FakePaths())
+        #expect(await plain.context(deadline: .now + .seconds(2)) == .unknown)
         let failing = TranslationPrefixes(resolver: FakeResolver(answers: [:]), paths: FakePaths())
         #expect(await failing.context(deadline: .now + .seconds(2)) == .unknown)
     }
@@ -101,31 +98,38 @@ struct AddressPolicyTests {
         _ = await translation.context(deadline: .now + .seconds(2))
         _ = await translation.context(deadline: .now + .seconds(2))
         #expect(resolver.calls == ["ipv4only.arpa"])
-        paths.set(signature: "cellular-1", ipv6Only: true)
-        #expect(await translation.context(deadline: .now + .seconds(2)) == .unknown) // no prefix on an IPv6-only path
+        paths.set(signature: "cellular-1")
+        #expect(await translation.context(deadline: .now + .seconds(2)) == .unknown)
         #expect(resolver.calls == ["ipv4only.arpa", "ipv4only.arpa"])
     }
 
     @Test func vetterAppliesTheNetworkPrefix() async throws {
         let answers = ["ipv4only.arpa": ["2001:470:64::c000:aa"], "tiskarna-bq.cz": ["2001:470:64::c0a8:101"],
-                       "obchod-bq.cz": ["2001:470:64::5db8:d70e"], "v6only-bq.cz": ["2606:4700::1111"]]
-        let vetter = testVetter(answers, paths: FakePaths(ipv6Only: true))
+                       "obchod-bq.cz": ["2001:470:64::5db8:d70e"], "v6only-bq.cz": ["2606:4700::1111"],
+                       "dual-bq.cz": ["93.184.215.14", "2606:4700::1111"]]
+        let vetter = testVetter(answers)
         await #expect(throws: FetchError.nonPublicAddress) { try await vetter.vet("tiskarna-bq.cz", deadline: .now + .seconds(2)) }
         #expect(try await vetter.vet("obchod-bq.cz", deadline: .now + .seconds(2)).count == 1)
         #expect(try await vetter.vet("v6only-bq.cz", deadline: .now + .seconds(2)).count == 1)
         // IPv6 literals go through the same rules.
         await #expect(throws: FetchError.nonPublicAddress) { try await vetter.vet("2001:470:64::c0a8:101", deadline: .now + .seconds(2)) }
 
-        // Same answers on an IPv6-only network whose prefix could not be discovered.
-        let blind = testVetter(answers.filter { $0.key != "ipv4only.arpa" }, paths: FakePaths(ipv6Only: true))
-        await #expect(throws: FetchError.unverifiableAddress) { try await blind.vet("tiskarna-bq.cz", deadline: .now + .seconds(2)) }
-        await #expect(throws: FetchError.unverifiableAddress) { try await blind.vet("v6only-bq.cz", deadline: .now + .seconds(2)) }
+        #expect(try await vetter.vet("dual-bq.cz", deadline: .now + .seconds(2)).count == 2)
+
+        // The same answers where no prefix is known — a dual-stack network whose resolver has no DNS64
+        // can still route 2001:470:64::/96 through a translator: IPv4 answers only.
+        for blind in [testVetter(answers.merging(noNAT64) { $1 }), testVetter(answers.filter { $0.key != "ipv4only.arpa" })] {
+            await #expect(throws: FetchError.unverifiableAddress) { try await blind.vet("tiskarna-bq.cz", deadline: .now + .seconds(2)) }
+            await #expect(throws: FetchError.unverifiableAddress) { try await blind.vet("v6only-bq.cz", deadline: .now + .seconds(2)) }
+            await #expect(throws: FetchError.unverifiableAddress) { try await blind.vet("2001:470:64::c0a8:101", deadline: .now + .seconds(2)) }
+            #expect(try await blind.vet("dual-bq.cz", deadline: .now + .seconds(2)) == [BQCore.IPAddress("93.184.215.14")!])
+        }
     }
 
     // MARK: SafeFetcher never connects to a refused name
 
-    private func fetcher(_ answers: [String: [String]], paths: FakePaths = FakePaths(), counter: ConnectionCounter) -> SafeFetcher {
-        SafeFetcher(vetter: testVetter(answers, paths: paths), configuration: .init(), connector: counter.connector)
+    private func fetcher(_ answers: [String: [String]], counter: ConnectionCounter) -> SafeFetcher {
+        SafeFetcher(vetter: testVetter(answers), configuration: .init(), connector: counter.connector)
     }
 
     @Test func publicNameResolvingToAPrivateAddressIsNeverContacted() async {
@@ -151,13 +155,17 @@ struct AddressPolicyTests {
 
     @Test func networkSpecificNAT64AddressIsNeverContacted() async {
         let counter = ConnectionCounter()
-        let safe = fetcher(["ipv4only.arpa": ["2001:470:64::c000:aa"], "rebind-bq.cz": ["2001:470:64::c0a8:101"]],
-                           paths: FakePaths(ipv6Only: true), counter: counter)
+        let known = fetcher(nsp64.merging(["rebind-bq.cz": ["2001:470:64::c0a8:101"]]) { $1 }, counter: counter)
         await #expect(throws: FetchError.nonPublicAddress) {
-            try await safe.fetch(FetchRequest(url: URL(string: "https://rebind-bq.cz/")!, deadline: .now + .seconds(2)))
+            try await known.fetch(FetchRequest(url: URL(string: "https://rebind-bq.cz/")!, deadline: .now + .seconds(2)))
         }
         await #expect(throws: FetchError.nonPublicAddress) {
-            try await safe.fetch(FetchRequest(url: URL(string: "https://[2001:470:64::c0a8:101]/")!, deadline: .now + .seconds(2)))
+            try await known.fetch(FetchRequest(url: URL(string: "https://[2001:470:64::c0a8:101]/")!, deadline: .now + .seconds(2)))
+        }
+        // Dual-stack network without DNS64 (the translator's prefix can't be discovered).
+        let unknown = fetcher(noNAT64.merging(["rebind-bq.cz": ["2001:470:64::c0a8:101"]]) { $1 }, counter: counter)
+        await #expect(throws: FetchError.unverifiableAddress) {
+            try await unknown.fetch(FetchRequest(url: URL(string: "https://rebind-bq.cz/")!, deadline: .now + .seconds(2)))
         }
         #expect(counter.value == 0)
     }
@@ -172,6 +180,24 @@ struct AddressPolicyTests {
             try await safe.fetch(FetchRequest(url: URL(string: "https://localhost/")!, deadline: .now + .seconds(2)))
         }
         #expect(counter.value == 0)
+    }
+
+    @Test func resolverFailuresAreNotNonExistence() {
+        #expect(SystemResolver.failure(status: EAI_NONAME) == .nameNotResolved)
+        #expect(SystemResolver.failure(status: EAI_NODATA) == .nameNotResolved)
+        #expect(SystemResolver.failure(status: EAI_AGAIN) == .resolverFailed)
+        #expect(SystemResolver.failure(status: EAI_FAIL) == .resolverFailed)
+        #expect(SystemResolver.failure(status: EAI_SYSTEM) == .resolverFailed)
+    }
+
+    @Test func vetterRejectsBracketedNames() async throws {
+        let resolver = FakeResolver(answers: ["o2platba.cz": ["93.184.215.14"]])
+        let vetter = AddressVetter(resolver: resolver, translation: TranslationPrefixes(resolver: FakeResolver(answers: nsp64), paths: FakePaths()))
+        for host in ["[o2platba.cz]", "[1.2.3.4]", "[o2platba.cz", "o2platba.cz]"] {
+            await #expect(throws: FetchError.invalidRequest, "\(host)") { try await vetter.vet(host, deadline: .now + .seconds(2)) }
+        }
+        #expect(resolver.calls.isEmpty)
+        #expect(try await vetter.vet("[2606:4700::1111]", deadline: .now + .seconds(2)).count == 1)
     }
 
     @Test func refusesNonHTTPS() async {

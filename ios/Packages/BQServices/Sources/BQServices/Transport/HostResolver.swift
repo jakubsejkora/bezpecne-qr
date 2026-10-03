@@ -41,7 +41,8 @@ public struct SystemResolver: HostResolver {
         hints.ai_flags = 0
         var list: UnsafeMutablePointer<addrinfo>?
         let status = getaddrinfo(host, nil, &hints, &list)
-        guard status == 0, let first = list else { return .failure(.nameNotResolved) }
+        guard status == 0 else { return .failure(failure(status: status)) }
+        guard let first = list else { return .failure(.nameNotResolved) }
         defer { freeaddrinfo(first) }
 
         var addresses: [IPAddress] = []
@@ -90,6 +91,12 @@ public struct AddressVetter: HostVetting {
     }
 
     public func vet(_ host: String, deadline: Deadline) async throws(FetchError) -> [BQCore.IPAddress] {
+        // Brackets belong only around an IPv6 literal ("https://[o2platba.cz]/" parses in Foundation).
+        if host.hasPrefix("[") || host.hasSuffix("]") {
+            guard host.hasPrefix("["), host.hasSuffix("]"), IPAddress(String(host.dropFirst().dropLast()))?.family == .v6 else {
+                throw .invalidRequest
+            }
+        }
         if deadline.hasPassed { throw .timeout }
         let translation = self.translation
         async let context = translation.context(deadline: deadline)
@@ -100,6 +107,14 @@ public struct AddressVetter: HostVetting {
             addresses = try await resolver.resolve(host, deadline: deadline)
         }
         return try AddressPolicy.vet(addresses, context: await context)
+    }
+}
+
+extension SystemResolver {
+    /// Only "no such name / no address" means the name doesn't exist; anything else (EAI_AGAIN,
+    /// EAI_FAIL, EAI_SYSTEM…) says nothing about it.
+    static func failure(status: Int32) -> FetchError {
+        status == EAI_NONAME || status == EAI_NODATA ? .nameNotResolved : .resolverFailed
     }
 }
 

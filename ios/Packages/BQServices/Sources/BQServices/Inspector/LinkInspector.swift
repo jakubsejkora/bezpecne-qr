@@ -96,9 +96,12 @@ public actor LinkInspector {
         case .notNeeded:
             return Inspection(chain: [Hop(url: LinkInspector.display(url), stopped: .gate)], domain: await checks?.facts(),
                               completeness: Completeness(.notNeeded, reason: IncompleteReason.notLoaded(url)))
-        case .billingStop:
+        case .billingStop(let host):
+            // The operator's own website gets its own explanation (as in BQCore's Analyzer); a billing
+            // gateway is a billing stop.
+            let reason = gate.isOperatorHost(host) && !gate.isBillingHost(host) ? IncompleteReason.operatorSkipped : IncompleteReason.billingStop
             return Inspection(chain: [Hop(url: LinkInspector.display(url), stopped: .billing)], domain: await checks?.facts(),
-                              completeness: Completeness(.incomplete, reason: IncompleteReason.billingStop))
+                              completeness: Completeness(.incomplete, reason: reason))
         case .fetch, .upgrade, .refuse:
             break
         }
@@ -141,19 +144,16 @@ public actor LinkInspector {
         case publicName, privateName, undetermined
     }
 
-    /// Whether a name may be sent to the public checks: it resolves to public addresses only, or not
-    /// at all (then no network of the user's knows it either). Private answers keep it on the device;
-    /// so does anything that could not be vetted.
+    /// Whether a name may be sent to the public checks: only when it resolved, through the system
+    /// resolver, to vetted public addresses. Private answers keep it on the device and end the
+    /// inspection; any other outcome (no such name, resolver failure, timeout, unverifiable answers)
+    /// keeps it on the device too.
     private func vetting(_ host: String, deadline: Deadline) async -> NameVetting {
         do {
             _ = try await vetter.vet(host, deadline: deadline)
             return .publicName
         } catch {
-            switch error {
-            case .nonPublicAddress: return .privateName
-            case .nameNotResolved: return .publicName
-            default: return .undetermined
-            }
+            return error == .nonPublicAddress ? .privateName : .undetermined
         }
     }
 
@@ -176,8 +176,8 @@ public actor LinkInspector {
         var final: Endpoint?
         var page: PageFacts?
         var completeness = Completeness.complete
-        /// Set when the walk left a page that was not read completely (a meta refresh in a truncated,
-        /// interrupted or timed-out body): the inspection can't end complete after that.
+        /// Set as soon as any response body (or page analysis) along the walk was incomplete: the
+        /// inspection can't end complete after that, wherever the walk goes next.
         var degraded: Completeness?
         /// The last URL we contacted or tried to contact (for the domain checks).
         var destination: URL?
@@ -194,6 +194,11 @@ public actor LinkInspector {
         mutating func stop(_ hop: Hop, _ completeness: Completeness) {
             chain.append(hop)
             self.completeness = completeness.state == .complete ? degraded ?? completeness : completeness
+        }
+
+        /// Records the first reason the walk can no longer end complete.
+        mutating func degrade(_ reason: String) {
+            if degraded == nil { degraded = Completeness(.incomplete, reason: reason) }
         }
     }
 
@@ -259,6 +264,16 @@ public actor LinkInspector {
             if kind == nil { kind = hopKind(host: host, previousHost: walk.previousHost) }
             var hop = Hop(url: recorded, status: response.status, kind: kind)
 
+            // A body that did not arrive completely is accounted for before anything is read from it:
+            // whatever follows — this page, a page we can't recognize, or navigation it leads to — can't
+            // make the inspection complete.
+            switch response.bodyState {
+            case .truncated, .interrupted: walk.degrade(IncompleteReason.pageTruncated)
+            case .timedOut: walk.degrade(IncompleteReason.timeout)
+            case .complete, .skipped: break
+            }
+            let stalled = response.bodyState == .timedOut
+
             // Where does this response send the browser next?
             var next: URL?
             if response.isRedirect, let location = response.headers["location"] {
@@ -277,40 +292,24 @@ public actor LinkInspector {
                 progress(.readingPage)
                 let analysis = analyzer.analyze(response.body, charset: response.charset, url: target,
                                                 refreshHeader: response.headers["refresh"])
+                if analysis.truncated { walk.degrade(IncompleteReason.pageTruncated) }
                 if let refresh = analysis.refresh, refresh.delay <= LinkInspector.maxRefreshDelay,
                    let destination = refresh.url, LinkInspector.loopKey(destination) != key {
                     if hop.kind == nil { hop.kind = .metaRefresh }
-                    // The refresh is followed, but a page we didn't read completely keeps the result incomplete.
-                    switch response.bodyState {
-                    case .truncated, .interrupted:
-                        walk.degraded = walk.degraded ?? Completeness(.incomplete, reason: IncompleteReason.pageTruncated)
-                    case .timedOut:
-                        walk.degraded = walk.degraded ?? Completeness(.incomplete, reason: IncompleteReason.timeout)
-                    case .complete, .skipped:
-                        if analysis.truncated {
-                            walk.degraded = walk.degraded ?? Completeness(.incomplete, reason: IncompleteReason.pageTruncated)
-                        }
-                    }
                     next = destination
                 } else {
                     walk.final = endpoint(target)
                     walk.page = analysis.facts
-                    switch response.bodyState {
-                    case .truncated, .interrupted:
-                        return walk.stop(hop, Completeness(.incomplete, reason: IncompleteReason.pageTruncated))
-                    case .timedOut:
-                        hop.stopped = .timeout
-                        return walk.stop(hop, Completeness(.incomplete, reason: IncompleteReason.timeout))
-                    case .complete, .skipped:
-                        if analysis.truncated {
-                            return walk.stop(hop, Completeness(.incomplete, reason: IncompleteReason.pageTruncated))
-                        }
-                        return walk.stop(hop, analysis.scriptOnly ? Completeness(.incomplete, reason: IncompleteReason.jsOnly) : .complete)
-                    }
+                    if stalled { hop.stopped = .timeout }
+                    // "Script only" is judged on a page we read completely; otherwise the earlier reason stands.
+                    let scriptOnly = walk.degraded == nil && analysis.scriptOnly
+                    return walk.stop(hop, scriptOnly ? Completeness(.incomplete, reason: IncompleteReason.jsOnly) : .complete)
                 }
             } else {
-                // A final response that is not a page (a file, an image, an empty 204…).
+                // A final response that is not a page (a file, an image, an empty 204…) — or one whose
+                // body stalled before it could be recognized.
                 walk.final = endpoint(target)
+                if stalled { hop.stopped = .timeout }
                 return walk.stop(hop, .complete)
             }
 
@@ -343,7 +342,7 @@ public actor LinkInspector {
             return (stop, IncompleteReason.fetchFailed)
         case .offline:
             return (stop, IncompleteReason.offline)
-        case .nameNotResolved, .connectionFailed, .timeout:
+        case .nameNotResolved, .resolverFailed, .connectionFailed, .timeout:
             // The network may have dropped while we were walking.
             if await reachability.isOffline() { return (stop, IncompleteReason.offline) }
         default:

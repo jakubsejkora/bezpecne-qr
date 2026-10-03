@@ -97,7 +97,10 @@ public struct LinkGate: Sendable {
     /// labels ("a..b", "x.cz..") or anything else a resolver might read differently.
     static func canonicalHost(_ encoded: String?) -> String? {
         guard var host = encoded?.lowercased(), !host.isEmpty, !host.contains("%") else { return nil }
-        if host.hasPrefix("[") { return host.hasSuffix("]") ? host : nil } // IPv6 literal
+        if host.hasPrefix("[") || host.hasSuffix("]") {
+            // Brackets are only valid around an IPv6 literal ("https://[o2platba.cz]/" is not).
+            return host.hasPrefix("[") && host.hasSuffix("]") && IPAddress(host)?.family == .v6 ? host : nil
+        }
         if host.hasSuffix(".") { host.removeLast() }
         guard !host.isEmpty, !host.hasPrefix("."), !host.hasSuffix("."), !host.contains("..") else { return nil }
         return host
@@ -172,24 +175,37 @@ public struct LinkGate: Sendable {
         return false
     }
 
-    /// Checks a decoded parameter value that is itself a URL or a query string. Never assigns
-    /// untrusted text to Foundation's percent-encoded properties (they trap on invalid escapes).
+    /// Checks a parameter value (decoded once by URLComponents) that may hide a URL, a query string
+    /// or a token behind further layers of percent-encoding. It never assigns untrusted text to
+    /// Foundation's percent-encoded properties (they trap on invalid escapes), and it fails closed:
+    /// anything it can't resolve within its limits counts as a token.
     private func nestedHasToken(_ value: String, depth: Int) -> Bool {
-        var candidates = [value]
-        if let decodedAgain = value.removingPercentEncoding, decodedAgain != value { candidates.append(decodedAgain) }
-        for candidate in candidates {
-            let looksNested = candidate.contains("://") || candidate.contains("=")
-            guard looksNested else { continue }
-            // Nesting deeper than we inspect is treated as a token: fail closed.
-            if depth >= 2 { return true }
-            if candidate.contains("://"), let inner = URLComponents(string: LinkParser.percentEncodeNonASCII(candidate)) {
-                if let host = LinkGate.canonicalHost(inner.encodedHost), SensitiveLinks.isLoginLink(host: host, path: inner.path) { return true }
+        // Peel up to four more layers ("%25253F" is a "?" three layers down).
+        var layers = [value]
+        var current = value
+        for _ in 0..<4 {
+            guard let next = current.removingPercentEncoding, next != current else { break }
+            layers.append(next)
+            current = next
+        }
+        if let next = current.removingPercentEncoding, next != current { return true }
+
+        for layer in layers {
+            if LinkGate.looksLikeToken(layer) { return true }
+            guard layer.contains("://") || layer.contains("=") || layer.contains("?") else { continue }
+            if depth >= 2 { return true }   // a URL inside a URL inside a URL: fail closed
+            if layer.contains("://"), let inner = URLComponents(string: LinkParser.percentEncodeNonASCII(layer)) {
+                let host = LinkGate.canonicalHost(inner.encodedHost)
+                if inner.encodedHost != nil, host == nil { return true }
+                if let host, SensitiveLinks.isLoginLink(host: host, path: inner.path) { return true }
+                if LinkGate.hasAmbiguousEncoding(inner) { return true }
                 if hasToken(inner, depth: depth + 1) || hasAuthPath(inner) { return true }
             }
-            let query = candidate.split(separator: "?", maxSplits: 1).last.map(String.init) ?? candidate
-            if LinkGate.pairs(query).contains(where: { pair in
-                isTokenKey(pair.key) || LinkGate.looksLikeToken(pair.value)
-            }) { return true }
+            let query = layer.split(separator: "?", maxSplits: 1).last.map(String.init) ?? layer
+            for pair in LinkGate.pairs(query) {
+                if isTokenKey(pair.key) || LinkGate.looksLikeToken(pair.value) { return true }
+                if !pair.value.isEmpty, pair.value != layer, nestedHasToken(pair.value, depth: depth + 1) { return true }
+            }
         }
         return false
     }
@@ -211,27 +227,33 @@ public struct LinkGate: Sendable {
             || n.hasPrefix("saml")
     }
 
-    /// JWTs, long hex strings and opaque base64url values (≥ 24 characters). Readable slugs —
-    /// words joined by hyphens, underscores or dots — are not tokens.
+    /// JWTs, long hex strings, UUIDs and opaque base64url values (≥ 24 characters). Only readable
+    /// slugs — words joined by separators — are exempt.
     static func looksLikeToken(_ value: String, pathSegment: Bool = false) -> Bool {
         let v = value.percentDecoded
         if v.matches("eyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}") { return true }
+        if v.matches("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$") { return true }
         if v.count >= 24, v.matches("^[0-9a-fA-F]+$") { return true }
         guard v.count >= 24, v.matches("^[A-Za-z0-9_=+/.~-]+$") else { return false }
-        let digits = v.filter(\.isNumber).count
-        let letters = v.filter(\.isLetter).count
-        guard digits >= 1, letters >= 1 else { return false }
-        if isReadableSlug(v) { return false }
-        // Path segments are more often readable identifiers; require a little more evidence there.
-        return pathSegment ? digits >= 2 && v.entropy >= 3.2 : true
+        return !isReadableSlug(v)
     }
 
-    /// "podvod-qr-kod-parkovani.A250101_120000_domaci_jkk" is a slug: most parts are words.
+    /// "podvod-qr-kod-parkovani.A250101_120000_domaci_jkk" is readable: nearly every part is a word,
+    /// a number or a short code. "GxqVrNzJ-KpTsWfHd-8yLcBaEe" is not.
     static func isReadableSlug(_ v: String) -> Bool {
-        let parts = v.split(whereSeparator: { "-_.~".contains($0) }).map(String.init)
+        let parts = v.split(whereSeparator: { "-_.~+".contains($0) }).map(String.init)
         guard parts.count >= 3 else { return false }
-        let words = parts.filter { $0.count >= 2 && $0.allSatisfy(\.isLetter) }
-        return Double(words.count) / Double(parts.count) >= 0.6
+        func isWord(_ p: String) -> Bool {
+            if p.matches("^[0-9]{1,8}$") { return true }                       // numbers, dates
+            if p.matches("^[A-Z]{1,4}$") { return true }                       // CZ, QR, DPH
+            if p.matches("^[A-Z][0-9]{3,11}$") { return true }                 // A250101
+            guard p.matches("^(?:[a-z]+|[A-Z][a-z]+)[0-9]{0,4}$") else { return false }
+            let letters = p.filter(\.isLetter).lowercased()
+            if letters.count < 4 { return true }
+            let vowels = letters.filter { "aeiouy".contains($0) }.count
+            return Double(vowels) / Double(letters.count) >= 0.2
+        }
+        return Double(parts.filter(isWord).count) / Double(parts.count) >= 0.75
     }
 
     func hasAuthPath(_ c: URLComponents) -> Bool {
@@ -271,7 +293,7 @@ public struct LinkGate: Sendable {
 /// Known open redirectors whose real destination is in a query parameter.
 public enum OpenRedirect {
     static let patterns: [(host: String, path: String, params: [String])] = [
-        ("google.", "/url", ["q", "url"]),
+        ("google", "/url", ["q", "url"]),
         ("l.facebook.com", "/l.php", ["u"]),
         ("lm.facebook.com", "/l.php", ["u"]),
         ("l.instagram.com", "/", ["u"]),
@@ -283,11 +305,21 @@ public enum OpenRedirect {
         ("href.li", "/", []),
     ]
 
+    /// Google's own domains (not "google.attacker.cz").
+    static let googleDomains: Set<String> = [
+        "google.com", "google.cz", "google.sk", "google.de", "google.at", "google.pl", "google.hu", "google.co.uk",
+        "google.fr", "google.it", "google.es", "google.nl", "google.be", "google.ch", "google.com.ua",
+    ]
+
+    static func isGoogle(_ host: String) -> Bool {
+        googleDomains.contains { host == $0 || host == "www." + $0 }
+    }
+
     /// The destination hidden in an open-redirect link, if the link is one.
     public static func innerTarget(of url: URL) -> URL? {
         guard let c = URLComponents(url: url, resolvingAgainstBaseURL: false), let host = c.encodedHost?.lowercased() else { return nil }
         for p in patterns {
-            let hostMatches = p.host.hasSuffix(".") ? (host.hasPrefix(p.host) || host.contains("." + p.host)) : host == p.host
+            let hostMatches = p.host == "google" ? OpenRedirect.isGoogle(host) : host == p.host
             guard hostMatches, c.path.hasPrefix(p.path) else { continue }
             for name in p.params {
                 if let value = c.queryItems?.first(where: { $0.name == name })?.value,

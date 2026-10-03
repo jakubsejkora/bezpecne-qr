@@ -47,6 +47,8 @@ public enum IncompleteReason {
     public static let offline = "inc.offline"
     public static let timeout = "inc.timeout"
     public static let billingStop = "inc.billing_stop"
+    /// The scanned link is a mobile operator's own website (not a billing gateway).
+    public static let operatorSkipped = "inc.operator_skipped"
     public static let httpsFailed = "inc.https_failed"
     public static let checksDisabled = "inc.checks_disabled"
     public static let jsOnly = "inc.js_only"

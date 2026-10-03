@@ -173,6 +173,32 @@ struct GateTests {
         #expect(decision(outer) == .skip(reason: "inc.token_skipped", manual: false))
     }
 
+    // Codex review round 2, remaining items.
+    @Test func bracketedNamesAreRefused() {
+        #expect(decision("https://[o2platba.cz]/", hop: 1) == .refuse(.ambiguous))
+        #expect(decision("https://[s.team]/q/1234567890123456789", hop: 1) == .refuse(.ambiguous))
+        #expect(decision("https://[2001:4860:4860::8888]/") == .fetch(URL(string: "https://[2001:4860:4860::8888]/")!))
+    }
+
+    @Test func multiplyEncodedSecretsAreCaught() {
+        #expect(decision("https://example.cz/go?next=inner%3Dtoken%253Dabc") == .skip(reason: "inc.token_skipped", manual: false))
+        #expect(decision("https://example.cz/go?next=%25253Ftoken%25253Dabc") == .skip(reason: "inc.token_skipped", manual: false))
+        // Ordinary nested return URLs still pass.
+        let ok = "https://login.seznam.cz/api/v1/autologin?service=homepage&return_url=https%3A%2F%2Fwww.seznam.cz%2F%3Fnoredirect%3D1"
+        #expect(decision(ok, hop: 1) == .fetch(URL(string: ok)!))
+    }
+
+    @Test func opaqueValuesWithoutDigitsAreTokens() {
+        #expect(decision("https://example.cz/x?v=gXqVrNzJmKpTsWfHdUyLbcAe") == .skip(reason: "inc.token_skipped", manual: false))
+        #expect(decision("https://example.cz/x?v=GxqVrNzJ-KpTsWfHd-8yLcBaEe") == .skip(reason: "inc.token_skipped", manual: false))
+        #expect(decision("https://example.cz/order/3f2a9c1e-7b4d-4e2a-9f1c-0d8e7a6b5c4d") == .skip(reason: "inc.token_skipped", manual: false))
+    }
+
+    @Test func onlyRealGoogleIsARedirector() {
+        #expect(OpenRedirect.innerTarget(of: URL(string: "https://google.attacker.cz/url?q=https://benign.cz/")!) == nil)
+        #expect(OpenRedirect.innerTarget(of: URL(string: "https://www.google.com/url?q=https://benign.cz/")!) != nil)
+    }
+
     @Test func ambiguousEncodingIsRefused() {
         #expect(decision("https://example.cz/x?%2574oken=x") == .refuse(.ambiguous))
         #expect(decision("https://example.cz/%256cogin") == .refuse(.ambiguous))

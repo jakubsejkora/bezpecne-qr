@@ -55,6 +55,18 @@ struct HTTPRequestTests {
         #expect(unicode.hostHeader == "www.xn--sob-eqa.cz")
     }
 
+    @Test func bracketsOnlyAroundIPv6() throws {
+        // Foundation parses these; the name inside must not reach DNS, SNI or Host.
+        for url in ["https://[o2platba.cz]/", "https://[s.team]/q/1234567890123456789", "https://[1.2.3.4]/", "https://[example.cz/"] {
+            if let u = URL(string: url) {
+                #expect(throws: FetchError.invalidRequest, "\(url)") { try FetchTarget(url: u) }
+            }
+        }
+        let v6 = try FetchTarget(url: URL(string: "https://[2606:4700::1111]:8443/x")!)
+        #expect(v6.ipLiteral?.family == .v6)
+        #expect(v6.hostHeader == "[2606:4700::1111]:8443")
+    }
+
     @Test func refusesWhatShouldNotReachTheWire() {
         for url in ["http://example.cz/", "ftp://example.cz/", "https:///nohost", "https://ex%41mple.cz/", "https://-bad-.cz/",
                     "https://a..b.cz/", "https://exam ple.cz/"] {

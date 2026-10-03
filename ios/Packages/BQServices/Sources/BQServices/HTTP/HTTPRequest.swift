@@ -20,7 +20,13 @@ struct FetchTarget: Sendable, Hashable {
         guard let c = URLComponents(url: url, resolvingAgainstBaseURL: false),
               c.scheme?.lowercased() == "https",
               var rawHost = c.encodedHost, !rawHost.isEmpty else { throw .invalidRequest }
-        if rawHost.hasPrefix("["), rawHost.hasSuffix("]") { rawHost = String(rawHost.dropFirst().dropLast()) }
+        // Brackets are allowed only around an IPv6 literal: Foundation also accepts
+        // "https://[o2platba.cz]/", which must not reach DNS, SNI or Host as "o2platba.cz".
+        if rawHost.hasPrefix("[") || rawHost.hasSuffix("]") {
+            let inner = String(rawHost.dropFirst().dropLast())
+            guard rawHost.hasPrefix("["), rawHost.hasSuffix("]"), IPAddress(inner)?.family == .v6 else { throw .invalidRequest }
+            rawHost = inner
+        }
 
         let port = c.port ?? 443
         guard (1...65535).contains(port) else { throw .invalidRequest }

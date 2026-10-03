@@ -202,26 +202,28 @@ final class FakeResolver: HostResolver {
 final class FakePaths: NetworkPathProviding {
     private let state: Mutex<PathSnapshot>
 
-    init(signature: String = "wifi-1", ipv6Only: Bool = false) {
-        state = Mutex(PathSnapshot(signature: signature, ipv6Only: ipv6Only, usable: true))
+    init(signature: String = "wifi-1") {
+        state = Mutex(PathSnapshot(signature: signature, usable: true))
     }
 
-    func set(signature: String, ipv6Only: Bool) {
-        state.withLock { $0 = PathSnapshot(signature: signature, ipv6Only: ipv6Only, usable: true) }
+    func set(signature: String) {
+        state.withLock { $0 = PathSnapshot(signature: signature, usable: true) }
     }
 
     func current() async -> PathSnapshot { state.withLock { $0 } }
 }
 
-/// An `AddressVetter` with a fake resolver and its own (not the shared) NAT64 discovery. Without an
-/// ipv4only.arpa answer in `answers`, discovery fails — IPv6 answers are then not trusted.
+/// An `AddressVetter` with a fake resolver and its own (not the shared) NAT64 discovery. IPv6
+/// answers are used only when `answers` holds a synthesized ipv4only.arpa AAAA (a NAT64 prefix).
 func testVetter(_ answers: [String: [String]], paths: FakePaths = FakePaths()) -> AddressVetter {
     let resolver = FakeResolver(answers: answers)
     return AddressVetter(resolver: resolver, translation: TranslationPrefixes(resolver: resolver, paths: paths))
 }
 
-/// The usual answers for ipv4only.arpa on a network without NAT64.
+/// The usual answers for ipv4only.arpa on a network without DNS64.
 let noNAT64 = ["ipv4only.arpa": ["192.0.0.170", "192.0.0.171"]]
+/// A DNS64 network with the network-specific prefix 2001:470:64::/96.
+let nsp64 = ["ipv4only.arpa": ["2001:470:64::c000:aa", "2001:470:64::c000:ab", "192.0.0.170"]]
 
 /// Vets names from a table: names listed as private fail with `nonPublicAddress`, others pass.
 final class FakeVetter: HostVetting {

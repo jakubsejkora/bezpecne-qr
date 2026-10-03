@@ -117,7 +117,8 @@ struct LinkInspectorTests {
         let vetter = FakeVetter()
         let expected = ["http://192.168.1.1/admin": "inc.refused_local", "https://localhost/": "inc.refused_local",
                         "https://printer.local/": "inc.refused_local", "ftp://example.cz/x": "inc.refused_scheme",
-                        "https://exa\\mple.cz/": "inc.refused_ambiguous"]
+                        "https://exa\\mple.cz/": "inc.refused_ambiguous", "https://[o2platba.cz]/": "inc.refused_ambiguous",
+                        "https://[s.team]/q/1234567890123456789": "inc.refused_ambiguous"]
         for (url, reason) in expected {
             guard let u = URL(string: url) else { continue }
             let result = await LinkInspector(transport: transport, vetter: vetter, domainChecker: checker, reachability: FixedReachability()).inspect(u)
@@ -407,19 +408,40 @@ struct LinkInspectorTests {
         #expect(transport.requested.isEmpty)
     }
 
-    @Test func namesThatCannotBeVettedStayOnTheDevice() async {
-        let transport = FakeTransport { _ in FakeTransport.html("<title>Ahoj</title>") }
+    @Test func onlyVettedPublicNamesReachThePublicChecks() async {
+        // No such name, resolver failure, timeout, unverifiable answers: the name stays on the device,
+        // and the fetch (which resolves again) reports what happened.
+        for failure in [FetchError.nameNotResolved, .resolverFailed, .timeout, .unverifiableAddress] {
+            let transport = FakeTransport { _ in .failure(failure) }
+            let checker = FakeDomainChecker()
+            let result = await inspect("https://printer.company.cz/", transport: transport, checker: checker,
+                                       vetter: FakeVetter(["printer.company.cz": failure]))
+            #expect(checker.calls.isEmpty, "\(failure)")
+            #expect(result.domain == nil)
+            #expect(result.completeness?.state == .incomplete)
+            #expect(transport.requested == ["https://printer.company.cz/"])
+        }
+        // Also with page loading off, and for links the gate stops anyway.
         let checker = FakeDomainChecker()
-        // DNS timed out: no public checks, but the fetch (which vets again) still runs.
-        let slow = await inspect("https://slow-dns-bq.cz/", transport: transport, checker: checker,
-                                 vetter: FakeVetter(["slow-dns-bq.cz": .timeout]))
+        let vetter = FakeVetter(["printer.company.cz": .resolverFailed])
+        let off = await inspect("https://printer.company.cz/", transport: FakeTransport { _ in .failure(.connectionFailed) },
+                                checker: checker, vetter: vetter, options: InspectionOptions(pageFetch: false))
+        #expect(off.domain == nil)
+        #expect(off.completeness == Completeness(.incomplete, reason: "inc.checks_disabled"))
+        _ = await inspect("https://printer.company.cz/x?token=9f2c7a1e5b3d48c0a6e2f19d7b8c4e3a",
+                          transport: FakeTransport { _ in .failure(.connectionFailed) }, checker: checker, vetter: vetter)
         #expect(checker.calls.isEmpty)
-        #expect(slow.domain == nil)
-        #expect(transport.requested == ["https://slow-dns-bq.cz/"])
-        // A name that doesn't resolve at all is not anyone's private name: checks run.
-        let gone = await inspect("https://smazana-bq.cz/", transport: FakeTransport { _ in .failure(.nameNotResolved) }, checker: checker,
-                                 vetter: FakeVetter(["smazana-bq.cz": .nameNotResolved]))
-        #expect(gone.domain?.name == "smazana-bq.cz")
+    }
+
+    @Test func unresolvableRedirectTargetsAreNotChecked() async {
+        let transport = FakeTransport { url in
+            url.host() == "short-bq.cz" ? FakeTransport.redirect("https://gone-bq.cz/") : .failure(.nameNotResolved)
+        }
+        let checker = FakeDomainChecker()
+        let result = await inspect("https://short-bq.cz/x", transport: transport, checker: checker,
+                                   vetter: FakeVetter(["gone-bq.cz": .nameNotResolved]))
+        #expect(!checker.calls.contains { $0.contains("gone-bq") })
+        #expect(result.domain?.name == "short-bq.cz")
     }
 
     @Test func privateRedirectTargetsAreNotChecked() async {
@@ -440,12 +462,55 @@ struct LinkInspectorTests {
         let checker = FakeDomainChecker()
         let result = await inspect("https://www.o2.cz/premium-sms", transport: transport, checker: checker)
         #expect(result.chain == [Hop(url: "https://www.o2.cz/premium-sms", stopped: .billing)])
-        #expect(result.completeness == Completeness(.incomplete, reason: "inc.billing_stop"))
-        #expect(transport.requested.isEmpty)
+        #expect(result.completeness == Completeness(.incomplete, reason: "inc.operator_skipped"))
         #expect(result.domain?.name == "o2.cz") // only the name goes to the public checks
+        // A billing gateway scanned directly is a billing stop.
+        let gateway = await inspect("https://pay.dimoco.eu/cz/checkout", transport: transport, checker: checker)
+        #expect(gateway.chain == [Hop(url: "https://pay.dimoco.eu/cz/checkout", stopped: .billing)])
+        #expect(gateway.completeness == Completeness(.incomplete, reason: "inc.billing_stop"))
+        #expect(transport.requested.isEmpty)
     }
 
     // MARK: Incompleteness survives page-derived navigation
+
+    @Test func aStalledBodyIsNeverComplete() async {
+        // 200 without Content-Type, a longer body announced, only "<" sent, then nothing: the body
+        // can't be recognized, but the inspection must not come out complete.
+        let stalled = FakeTransport { _ in .response(HTTPResponse(status: 200, body: Data("<".utf8), bodyState: .timedOut)) }
+        let result = await inspect("https://stall-bq.cz/", transport: stalled)
+        #expect(result.chain == [Hop(url: "https://stall-bq.cz/", status: 200, stopped: .timeout)])
+        #expect(result.completeness == Completeness(.incomplete, reason: "inc.timeout"))
+        // The same for a cut or broken body of something that isn't a page.
+        for state in [HTTPResponse.BodyState.truncated, .interrupted] {
+            let cut = FakeTransport { _ in .response(HTTPResponse(status: 200, headers: HTTPHeaders([("Content-Type", "application/pdf")]),
+                                                                  body: Data("%PDF".utf8), bodyState: state)) }
+            #expect(await inspect("https://cut-bq.cz/a.pdf", transport: cut).completeness == Completeness(.incomplete, reason: "inc.page_truncated"))
+        }
+    }
+
+    @Test func openRedirectFromAnIncompleteInterstitialStaysIncomplete() async {
+        let transport = FakeTransport([
+            "https://www.google.com/url?q=https://ceskaposta-doplatek.top/": FakeTransport.html("<p>Redirect Notice", bodyState: .interrupted),
+            "https://ceskaposta-doplatek.top/": FakeTransport.html("<title>Doplatek</title><p>Uhraďte 29 Kč</p>"),
+        ])
+        let result = await inspect("https://www.google.com/url?q=https://ceskaposta-doplatek.top/", transport: transport)
+        #expect(result.chain.map(\.kind) == [.openRedirect, nil])
+        #expect(result.page?.title == "Doplatek")
+        #expect(result.completeness == Completeness(.incomplete, reason: "inc.page_truncated"))
+    }
+
+    /// Only curated redirector domains count (BQCore `OpenRedirect`): a look-alike host serving its own
+    /// page is analysed as that page, and its `q` parameter is not followed.
+    @Test(.enabled(if: OpenRedirect.innerTarget(of: URL(string: "https://google.attacker.cz/url?q=https://benign-bq.cz/")!) == nil,
+                   "waits for the exact-domain OpenRedirect rule in BQCore"))
+    func lookAlikeRedirectorsAreOrdinaryPages() async {
+        let url = "https://google.attacker.cz/url?q=https://benign-bq.cz/"
+        let transport = FakeTransport([url: FakeTransport.html("<title>Přihlášení</title><input type=password name=pin>")])
+        let result = await inspect(url, transport: transport)
+        #expect(transport.requested == [url])
+        #expect(result.chain == [Hop(url: url, status: 200)])
+        #expect(result.page?.asks == [.password])
+    }
 
     @Test func metaRefreshFromAPartialPageStaysIncomplete() async {
         for (state, reason) in [(HTTPResponse.BodyState.truncated, "inc.page_truncated"), (.interrupted, "inc.page_truncated"), (.timedOut, "inc.timeout")] {

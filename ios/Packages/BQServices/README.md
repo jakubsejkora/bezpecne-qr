@@ -16,7 +16,7 @@ Extension-safe, no third-party dependencies, iOS 18 / macOS 15, Swift 6 strict c
 | `PageAnalyzer` | Bounded, streaming HTML tokenizer of our own → `PageFacts`: title, extract (`Label: [          ]`, `[ Button ]`), asks, offer + promise (dcb.json patterns), brand claim, install link, remote-access tools, foreign form hosts; plus meta-refresh and JS-redirect candidates. No WebKit, no `NSAttributedString` HTML import, nothing executed or fetched. Reports when a limit stopped it (`truncated`). |
 | `Quad9Client` | One RFC 8484 DoH POST (type A, EDNS padding, no ECS). Block = NXDOMAIN with an empty authority section (or EDE Blocked/Filtered); NXDOMAIN with an SOA is a non-existent name, not a block. Cached by TTL, backs off after 429/5xx. |
 | `RDAPClient` | Registration date (`yyyy-MM-dd`, Europe/Prague) via the bundled IANA bootstrap. HTTPS only, no redirects, 1 request/s per registry, coalesced (each caller keeps its own deadline), cached 1 h, backs off on 429/503. Missing data is unknown, never "old". |
-| `URLSessionEndpointClient` | URLSession (ephemeral) for Quad9 and RDAP: never follows redirects, never answers auth challenges, streams the body and cancels past 256 KiB. |
+| `URLSessionEndpointClient` | URLSession (ephemeral) for Quad9 and RDAP: our own server-trust evaluation (as in SafeFetcher), never follows redirects, never answers auth challenges, streams the body and cancels past 256 KiB. |
 
 `Quad9Client.shared` and `RDAPClient.shared` (the `DomainChecker` defaults) are process-wide, so
 caches, back-off and request spacing hold however many inspectors exist.
@@ -35,9 +35,12 @@ caches, back-off and request spacing hold however many inspectors exist.
   answer refuses the name (DNS rebinding / SSRF). NAT64: the network's translation prefixes are
   discovered from the AAAA records synthesized for `ipv4only.arpa` (RFC 7050, all RFC 6052
   layouts /32–/96) and cached per network path; an IPv6 answer inside such a prefix must embed a
-  public IPv4 address. If discovery fails — or finds no prefix on an IPv6-only path — IPv6 answers
-  are not trusted: only IPv4 answers are used (the system translates them) and an IPv6-only answer
-  fails (`unverifiableAddress`).
+  public IPv4 address. IPv6 answers are used only when a prefix was discovered: without one (no
+  DNS64, or discovery failed) a translator with an unknown prefix may exist even on dual-stack
+  networks, so only IPv4 answers are used — the system translates them where needed — and an
+  IPv6-only answer fails (`unverifiableAddress`). On most networks that means IPv4 only.
+- **Hosts.** Brackets are accepted only around an IPv6 literal (`https://[o2platba.cz]/` is refused
+  before DNS, SNI or `Host`). Resolver errors other than "no such name" are `resolverFailed`.
 - **Binding.** Connections go to the vetted IP endpoints (≤ 2 raced, 250 ms stagger), never the
   hostname. After `ready`, the peer must be the vetted address (or the system's NAT64 form of a
   vetted IPv4) and the establishment report must show no proxy; otherwise the fetch fails
@@ -45,7 +48,9 @@ caches, back-off and request spacing hold however many inspectors exist.
 - **TLS.** ≥ 1.2, SNI = hostname (none for IP literals), trust = `SecPolicyCreateSSL(true, host)`
   against system anchors with network fetches disabled (no AIA/OCSP traffic; stapled OCSP and SCTs
   are used). No session resumption, tickets, false start, 0-RTT or TCP fast open. ALPN offers only
-  `http/1.1`; anything else fails.
+  `http/1.1`; anything else fails. The Quad9/RDAP client applies the same evaluation in its
+  URLSession challenge handler and cancels on failure (the default evaluation would download a
+  missing issuer from a URL the peer names — incomplete-chain.badssl.com shows the difference).
 - **Request.** `GET` with Host, a mobile-Safari User-Agent, Accept, `Accept-Language: cs-CZ…`,
   `Accept-Encoding: gzip, deflate, br`, `Connection: close`. No cookies, Referer, credentials or
   fragment; auth challenges are never answered.
@@ -58,14 +63,18 @@ caches, back-off and request spacing hold however many inspectors exist.
   assumed only without a valid zlib header. Bytes after the coded data, a missing trailer or a
   checksum mismatch fail the fetch (`decodingFailed`); a body cut short keeps what decodes.
 - **Domain checks.** `pageFetch: false` sends nothing to the link; `domainChecks: false` sends
-  nothing to Quad9 or RDAP. A name is resolved and vetted before it may go to them: a name that
-  resolves to a private address (split DNS) is never sent, and the inspection ends `inc.refused_local`
-  without loading anything. IPs, local names and free-hosting tenants (RDAP) are never sent. No
-  redirects are followed and responses are capped while streaming. A Quad9 block on the scanned
-  domain means the page is not loaded at all.
-- **No silent truncation.** A body cut at a byte cap, a deadline or a broken connection, and a page
-  the analyzer could not read to the end, make the inspection incomplete (`inc.page_truncated` /
-  `inc.timeout`) — also when the walk continued from that page via meta refresh.
+  nothing to Quad9 or RDAP. A name goes to them only after it resolved, through the system
+  resolver, to vetted public addresses. A private answer (split DNS) ends the inspection
+  `inc.refused_local` without loading anything; no such name, resolver failure, timeout or
+  unverifiable answers keep the name on the device (the walk reports the fetch failure). IPs,
+  local names and free-hosting tenants (RDAP) are never sent. No redirects are followed and
+  responses are capped while streaming. A Quad9 block on the scanned domain means the page is not
+  loaded at all.
+- **No silent truncation.** A body cut at a byte cap, a deadline or a broken connection is
+  accounted for before the response is classified or followed anywhere, so the inspection ends
+  incomplete (`inc.page_truncated` / `inc.timeout`) — whether the response was a page, something
+  unrecognizable, an open-redirect interstitial or a meta refresh. A page the analyzer could not
+  read to the end counts the same.
 - No logging.
 
 ## Budgets (defaults, `InspectionOptions`)
@@ -85,7 +94,8 @@ caches, back-off and request spacing hold however many inspectors exist.
 ## Completeness reasons
 
 `IncompleteReason` holds the IDs, all from `shared/rules/signals.json` (`inc.offline`, `inc.timeout`,
-`inc.billing_stop`, `inc.https_failed`, `inc.token_skipped`, `inc.auth_path_skipped`,
+`inc.billing_stop`, `inc.operator_skipped` (an operator's own site scanned directly), `inc.https_failed`,
+`inc.token_skipped`, `inc.auth_path_skipped`,
 `inc.checks_disabled`, `inc.js_only`, `inc.domain_blocked`, `inc.not_loaded_*`, `inc.refused_*`)
 except three that still need texts there (proposed):
 

@@ -155,8 +155,10 @@ public enum FetchError: Error, Sendable, Hashable {
     /// The name resolved only to IPv6 addresses on a network whose NAT64 prefix is unknown, so they
     /// could not be vetted.
     case unverifiableAddress
-    /// The name did not resolve (or resolved to nothing).
+    /// The name does not exist (or has no addresses).
     case nameNotResolved
+    /// The resolver failed — temporarily or for a system reason; the name may well exist.
+    case resolverFailed
     /// No usable network path.
     case offline
     case timeout

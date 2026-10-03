@@ -1,5 +1,6 @@
 import BQCore
 import Foundation
+import Security
 import Testing
 @testable import BQServices
 
@@ -309,9 +310,39 @@ struct EndpointClientTests {
         }
     }
 
+    /// A self-signed certificate for rdap.nic.cz (made for this test).
+    static let selfSigned = Data(base64Encoded: "MIICMTCCAdegAwIBAgIJANBJh3CDtYKbMAoGCCqGSM49BAMCMBYxFDASBgNVBAMMC3JkYXAubmljLmN6MB4XDTI2MTAwMzAyMTUwM1oXDTM2MDkzMDAyMTUwM1owFjEUMBIGA1UEAwwLcmRhcC5uaWMuY3owggFLMIIBAwYHKoZIzj0CATCB9wIBATAsBgcqhkjOPQEBAiEA/////wAAAAEAAAAAAAAAAAAAAAD///////////////8wWwQg/////wAAAAEAAAAAAAAAAAAAAAD///////////////wEIFrGNdiqOpPns+u9VXaYhrxlHQawzFOw9jvOPD4n0mBLAxUAxJ02CIbnBJNqZnjhE50mt4GffpAEQQRrF9Hy4SxCR/i85uVjpEDydwN9gS3rM6D0oTlF2JjClk/jQuL+Gn+bjufrSnwPnhYrzjNXazFezsu2QGg3v1H1AiEA/////wAAAAD//////////7zm+q2nF56E87nKwvxjJVECAQEDQgAEzglKK3AftFkMJVVAP6g0JJ6PMUqoRIVbgPhxBZeCLBH0cmxhnUz9tIlHamCcFcB7sYVencLkHgQ0saut+38OzaMaMBgwFgYDVR0RBA8wDYILcmRhcC5uaWMuY3owCgYIKoZIzj0EAwIDSAAwRQIgZBM2dLIWnmqFInmEtM3xEe2iYit688jhqJukB/1+pzoCIQDhvpJNLARgntusARbR6a/vyqbYe+fJa32tnhX+vgzHPg==")!
+
+    @Test func serverTrustIsOursAndFailsClosed() throws {
+        #expect(EndpointTaskPolicy.disposition(for: nil, host: "rdap.nic.cz").0 == .cancelAuthenticationChallenge)
+        let certificate = try #require(SecCertificateCreateWithData(nil, Self.selfSigned as CFData))
+        var created: SecTrust?
+        #expect(SecTrustCreateWithCertificates(certificate, SecPolicyCreateBasicX509(), &created) == errSecSuccess)
+        guard let trust = created else {
+            Issue.record("no trust object")
+            return
+        }
+        let (disposition, credential) = EndpointTaskPolicy.disposition(for: trust, host: "rdap.nic.cz")
+        #expect(disposition == .cancelAuthenticationChallenge)
+        #expect(credential == nil)
+        // Other challenges (HTTP auth, client certificates) are never answered.
+        let space = URLProtectionSpace(host: "rdap.nic.cz", port: 443, protocol: "https", realm: nil,
+                                       authenticationMethod: NSURLAuthenticationMethodHTTPBasic)
+        let challenge = URLAuthenticationChallenge(protectionSpace: space, proposedCredential: nil, previousFailureCount: 0,
+                                                   failureResponse: nil, error: nil, sender: ChallengeSender())
+        #expect(EndpointTaskPolicy.answer(challenge).0 == .rejectProtectionSpace)
+    }
+
     @Test func onlyHTTPS() async {
         await #expect(throws: URLError.self) {
             try await MockURLProtocol.client(maxResponseBytes: 1024).send(URLRequest(url: URL(string: "http://rdap.nic.cz/")!))
         }
     }
+}
+
+/// A do-nothing sender for hand-made authentication challenges.
+final class ChallengeSender: NSObject, URLAuthenticationChallengeSender {
+    func use(_ credential: URLCredential, for challenge: URLAuthenticationChallenge) {}
+    func continueWithoutCredential(for challenge: URLAuthenticationChallenge) {}
+    func cancel(_ challenge: URLAuthenticationChallenge) {}
 }

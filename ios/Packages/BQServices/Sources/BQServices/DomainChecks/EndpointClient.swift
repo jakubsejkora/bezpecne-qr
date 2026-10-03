@@ -1,5 +1,6 @@
 import BQCore
 import Foundation
+import Security
 
 /// HTTPS requests to our own fixed endpoints (Quad9 DoH, RDAP registries). Only the domain name
 /// travels; tests inject fakes.
@@ -10,7 +11,8 @@ public protocol EndpointClient: Sendable {
 }
 
 /// URLSession with an ephemeral configuration: no cookies, no cache, no stored credentials, TLS ≥
-/// 1.2, never waiting for connectivity, no redirects. The body is streamed and the request is
+/// 1.2, never waiting for connectivity, no redirects. Server trust is evaluated by us, like in
+/// `SafeFetcher` (no issuer or revocation downloads). The body is streamed and the request is
 /// cancelled as soon as it exceeds the budget.
 public final class URLSessionEndpointClient: EndpointClient {
     public static let shared = URLSessionEndpointClient()
@@ -37,7 +39,8 @@ public final class URLSessionEndpointClient: EndpointClient {
         configuration.timeoutIntervalForRequest = 8
         configuration.timeoutIntervalForResource = 8
         configuration.httpMaximumConnectionsPerHost = 2
-        session = URLSession(configuration: configuration)
+        // The policy is the session delegate too, so session-level challenges reach it as well.
+        session = URLSession(configuration: configuration, delegate: EndpointTaskPolicy.shared, delegateQueue: nil)
         self.maxResponseBytes = maxResponseBytes
     }
 
@@ -74,8 +77,10 @@ public final class URLSessionEndpointClient: EndpointClient {
 }
 
 /// Never follows a redirect (a hostile registry could point anywhere, including private or
-/// billing hosts) and never answers authentication challenges; server trust uses the system
-/// evaluation.
+/// billing hosts) and never answers authentication challenges. Server trust is evaluated here with
+/// `TrustEvaluator`: the hostname SSL policy against the system anchors, with issuer downloads and
+/// revocation fetches off — the default evaluation could fetch a missing issuer from any URL the
+/// peer's certificate names, over cleartext HTTP.
 final class EndpointTaskPolicy: NSObject, URLSessionTaskDelegate, Sendable {
     static let shared = EndpointTaskPolicy()
 
@@ -86,10 +91,24 @@ final class EndpointTaskPolicy: NSObject, URLSessionTaskDelegate, Sendable {
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge) async
         -> (URLSession.AuthChallengeDisposition, URLCredential?) {
-        if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust {
-            return (.performDefaultHandling, nil)
-        }
-        return (.rejectProtectionSpace, nil)
+        EndpointTaskPolicy.answer(challenge)
+    }
+
+    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge) async
+        -> (URLSession.AuthChallengeDisposition, URLCredential?) {
+        EndpointTaskPolicy.answer(challenge)
+    }
+
+    static func answer(_ challenge: URLAuthenticationChallenge) -> (URLSession.AuthChallengeDisposition, URLCredential?) {
+        let space = challenge.protectionSpace
+        guard space.authenticationMethod == NSURLAuthenticationMethodServerTrust else { return (.rejectProtectionSpace, nil) }
+        return disposition(for: space.serverTrust, host: space.host)
+    }
+
+    /// Accepts the server only when our evaluation passes; anything else cancels the request.
+    static func disposition(for trust: SecTrust?, host: String) -> (URLSession.AuthChallengeDisposition, URLCredential?) {
+        guard let trust, TrustEvaluator.evaluate(trust, host: host) else { return (.cancelAuthenticationChallenge, nil) }
+        return (.useCredential, URLCredential(trust: trust))
     }
 }
 

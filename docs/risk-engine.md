@@ -52,6 +52,11 @@ score = round(100 · sigmoid(baseline + Σ_groups min(cap, combine(weights))))
 2. Links that look like login, confirmation, redemption or unsubscribe URLs, or that contain tokens, are **not** fetched automatically.
 3. Private and special-use addresses are refused.
 
+**The gate in detail** (`LinkGate`, hardened after two rounds of independent security review):
+- One canonical host for every check and for the request itself: lower-case punycode, one trailing dot removed. Hosts with empty labels, percent-escapes or brackets around anything but an IPv6 address are refused as ambiguous, and so are paths with `.`/`..` segments or escapes left after decoding.
+- Mobile-operator sites and carrier-billing hosts are never contacted, on any hop, including as the scanned link. Login and device-link URLs (Steam, Discord) are never contacted either.
+- Tokens: known token parameters, JWTs, UUIDs, long hex and any other opaque value of 24+ characters, unless it reads as a slug of words. Parameter values are decoded up to four more layers and nested URLs or query strings are checked too; a URL nested two levels deep, or encoding that can't be resolved, counts as a token.
+
 **How pages are fetched:**
 - HTTPS only. For `http://` links the HTTPS variant is tried and cleartext is never fetched.
 - One streamed GET per hop, with no cookies and no JavaScript.
