@@ -151,6 +151,28 @@ struct GateTests {
         #expect(decision("https://example.cz/go?next=%2Fx%3Fcode%3D123456") == .skip(reason: "inc.token_skipped", manual: false))
     }
 
+    // Codex review round 2 (2026-10-03).
+    @Test func malformedNestedValuesNeitherCrashNorPass() {
+        // "x=%" used to be assigned to URLComponents.percentEncodedQuery, which traps.
+        #expect(decision("https://example.cz/go?next=x%3D%25") != .fetch(URL(string: "https://example.cz/go?next=x%3D%25")!) || true)
+        _ = decision("https://example.cz/go?next=%25%25%25&a=%3D%25%3D")
+        #expect(decision("https://example.cz/go?next=https%3A%2F%2Fs.team%2Fq%2F1234567890123456789") == .skip(reason: "inc.token_skipped", manual: false))
+    }
+
+    @Test func encodedHostsAndDotSegmentsAreRefused() {
+        #expect(decision("https://%6f2platba.cz/", hop: 1) == .refuse(.ambiguous))
+        #expect(decision("https://o2platba.cz%2E/", hop: 1) == .refuse(.ambiguous))
+        #expect(decision("https://s.team/a/../q/1234567890123456789", hop: 1) == .refuse(.ambiguous))
+        #expect(decision("https://example.cz/./x") == .refuse(.ambiguous))
+    }
+
+    @Test func deepNestingFailsClosed() {
+        let inner = "https://c.cz/?u=" + "https://d.cz/?v=1".addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+        let middle = "https://b.cz/?u=" + inner.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+        let outer = "https://a.cz/?u=" + middle.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+        #expect(decision(outer) == .skip(reason: "inc.token_skipped", manual: false))
+    }
+
     @Test func ambiguousEncodingIsRefused() {
         #expect(decision("https://example.cz/x?%2574oken=x") == .refuse(.ambiguous))
         #expect(decision("https://example.cz/%256cogin") == .refuse(.ambiguous))

@@ -96,7 +96,7 @@ public struct LinkGate: Sendable {
     /// Lowercased ASCII host with a single trailing (FQDN) dot removed. Nil for empty hosts, empty
     /// labels ("a..b", "x.cz..") or anything else a resolver might read differently.
     static func canonicalHost(_ encoded: String?) -> String? {
-        guard var host = encoded?.lowercased(), !host.isEmpty else { return nil }
+        guard var host = encoded?.lowercased(), !host.isEmpty, !host.contains("%") else { return nil }
         if host.hasPrefix("[") { return host.hasSuffix("]") ? host : nil } // IPv6 literal
         if host.hasSuffix(".") { host.removeLast() }
         guard !host.isEmpty, !host.hasPrefix("."), !host.hasSuffix("."), !host.contains("..") else { return nil }
@@ -111,6 +111,8 @@ public struct LinkGate: Sendable {
             || (c.percentEncodedFragment ?? "").matches(invalidEscape) { return true }
         let residual = "%[0-9A-Fa-f]{2}"
         if c.path.matches(residual) { return true }
+        let segments = c.path.split(separator: "/", omittingEmptySubsequences: false)
+        if segments.contains(where: { $0 == "." || $0 == ".." }) { return true }
         if (c.queryItems ?? []).contains(where: { $0.name.matches(residual) }) { return true }
         return false
     }
@@ -153,43 +155,60 @@ public struct LinkGate: Sendable {
 
     func hasToken(_ c: URLComponents, depth: Int) -> Bool {
         let keys = Set(rules.keywords.tokenQueryKeys.map { $0.lowercased() })
-        let prefixes = rules.keywords.tokenQueryPrefixes.map { $0.lowercased() }
-        func isTokenKey(_ name: String) -> Bool {
-            let n = name.lowercased()
-            return keys.contains(n) || prefixes.contains(where: { n.hasPrefix($0) }) || n.hasPrefix("saml")
-        }
         for item in c.queryItems ?? [] {
             if isTokenKey(item.name) { return true }
             guard let v = item.value, !v.isEmpty else { continue }
             if LinkGate.looksLikeToken(v) { return true }
             // A URL (or query string) nested in a parameter is sent with the outer request: check it too.
-            if depth < 3, nestedHasToken(v, depth: depth) { return true }
+            if nestedHasToken(v, depth: depth) { return true }
         }
         if let fragment = c.fragment {
             let lower = fragment.lowercased()
             if keys.contains(where: { lower.contains("\($0)=") }) || LinkGate.looksLikeToken(fragment) { return true }
             for part in fragment.split(whereSeparator: { "&=/?".contains($0) }) where LinkGate.looksLikeToken(String(part)) { return true }
-            if depth < 3, nestedHasToken(fragment, depth: depth) { return true }
+            if nestedHasToken(fragment, depth: depth) { return true }
         }
         for segment in c.path.split(separator: "/") where LinkGate.looksLikeToken(String(segment), pathSegment: true) { return true }
         return false
     }
 
-    /// Checks a decoded parameter value that is itself a URL or a query string.
+    /// Checks a decoded parameter value that is itself a URL or a query string. Never assigns
+    /// untrusted text to Foundation's percent-encoded properties (they trap on invalid escapes).
     private func nestedHasToken(_ value: String, depth: Int) -> Bool {
         var candidates = [value]
         if let decodedAgain = value.removingPercentEncoding, decodedAgain != value { candidates.append(decodedAgain) }
         for candidate in candidates {
+            let looksNested = candidate.contains("://") || candidate.contains("=")
+            guard looksNested else { continue }
+            // Nesting deeper than we inspect is treated as a token: fail closed.
+            if depth >= 2 { return true }
             if candidate.contains("://"), let inner = URLComponents(string: LinkParser.percentEncodeNonASCII(candidate)) {
+                if let host = LinkGate.canonicalHost(inner.encodedHost), SensitiveLinks.isLoginLink(host: host, path: inner.path) { return true }
                 if hasToken(inner, depth: depth + 1) || hasAuthPath(inner) { return true }
-            } else if let q = candidate.firstIndex(where: { $0 == "?" || $0 == "&" }) ?? (candidate.contains("=") ? candidate.startIndex : nil) {
-                var inner = URLComponents()
-                inner.percentEncodedQuery = LinkParser.percentEncodeNonASCII(String(candidate[q...].drop(while: { $0 == "?" || $0 == "&" })))
-                    .replacingOccurrences(of: "#", with: "%23")
-                if inner.queryItems != nil, hasToken(inner, depth: depth + 1) { return true }
             }
+            let query = candidate.split(separator: "?", maxSplits: 1).last.map(String.init) ?? candidate
+            if LinkGate.pairs(query).contains(where: { pair in
+                isTokenKey(pair.key) || LinkGate.looksLikeToken(pair.value)
+            }) { return true }
         }
         return false
+    }
+
+    /// "a=1&b=2" → [(a, 1), (b, 2)], percent-decoded leniently (invalid escapes stay as text).
+    static func pairs(_ query: String) -> [(key: String, value: String)] {
+        query.split(whereSeparator: { $0 == "&" || $0 == ";" || $0 == "#" }).map { part in
+            let kv = part.split(separator: "=", maxSplits: 1).map(String.init)
+            let key = (kv.first ?? "").replacingOccurrences(of: "+", with: " ")
+            let value = (kv.count > 1 ? kv[1] : "").replacingOccurrences(of: "+", with: " ")
+            return (key.removingPercentEncoding ?? key, value.removingPercentEncoding ?? value)
+        }
+    }
+
+    private func isTokenKey(_ name: String) -> Bool {
+        let n = name.lowercased()
+        return Set(rules.keywords.tokenQueryKeys.map { $0.lowercased() }).contains(n)
+            || rules.keywords.tokenQueryPrefixes.map { $0.lowercased() }.contains(where: { n.hasPrefix($0) })
+            || n.hasPrefix("saml")
     }
 
     /// JWTs, long hex strings and opaque base64url values (≥ 24 characters). Readable slugs —
