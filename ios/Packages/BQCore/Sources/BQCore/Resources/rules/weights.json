@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "engineVersion": "0.1.0-draft",
+  "calibration": "uncalibrated-v0 — starter weights from the Codex review (2026-09-29). Replace after calibration on independently labelled data.",
+  "formula": "score = round(100 * sigmoid(baseline + Σ_groups min(cap, combine(weights)))); weak-only cap; then floors",
+  "bands": [
+    { "id": "safe", "min": 0, "max": 24 },
+    { "id": "caution", "min": 25, "max": 59 },
+    { "id": "danger", "min": 60, "max": 100 }
+  ],
+  "incompleteRule": "If inspection is incomplete and the score is below 25, the band is 'incomplete' (Nelze ověřit) and the score is shown muted.",
+  "weakOnlyCap": {
+    "groups": ["weak_provenance", "transport", "printed_context"],
+    "cap": 59
+  },
+  "engines": {
+    "url": { "baseline": -3 },
+    "payment": { "baseline": -3 },
+    "sms": { "baseline": -3 },
+    "phone": { "baseline": -3 },
+    "generic": { "baseline": -3 }
+  },
+  "groups": {
+    "weak_provenance": { "cap": 1.4, "combine": "sum" },
+    "transport": { "cap": 0.7, "combine": "sum" },
+    "identity_deception": { "cap": 2.5, "combine": "sum" },
+    "harmful_solicitation": { "cap": 3.5, "combine": "sum" },
+    "printed_context": { "cap": 2.0, "combine": "max" },
+    "threat_intel": { "cap": 6.0, "combine": "max" },
+    "payment_instruction": { "cap": 3.5, "combine": "max" },
+    "payment_recipient": { "cap": 2.0, "combine": "max" },
+    "payment_intel": { "cap": 6.0, "combine": "max" },
+    "sms_unsolicited": { "cap": 2.0, "combine": "sum" },
+    "sms_deception": { "cap": 2.5, "combine": "max" },
+    "sms_mismatch": { "cap": 2.0, "combine": "max" },
+    "sms_intel": { "cap": 6.0, "combine": "max" },
+    "phone_prefix": { "cap": 0.1, "combine": "max" }
+  },
+  "signals": {
+    "url.tld.common_legit": { "group": "weak_provenance", "weight": 0.15 },
+    "url.tld.abused": { "group": "weak_provenance", "weight": 0.3 },
+    "url.host.free_hosting": { "group": "weak_provenance", "weight": 0.25 },
+    "url.host.random_label": { "group": "weak_provenance", "weight": 0.25 },
+    "url.domain.age_lt7d": { "group": "weak_provenance", "weight": 0.6 },
+    "url.domain.age_lt30d": { "group": "weak_provenance", "weight": 0.3 },
+    "url.transport.http": { "group": "transport", "weight": 0.2 },
+    "url.transport.ip_literal": { "group": "transport", "weight": 0.4 },
+    "url.transport.unusual_port": { "group": "transport", "weight": 0.2 },
+    "url.identity.brand_lookalike": { "group": "identity_deception", "weight": 1.8, "floor": 25 },
+    "url.identity.userinfo_trick": { "group": "identity_deception", "weight": 1.5, "floor": 25 },
+    "url.identity.confusable_idn": { "group": "identity_deception", "weight": 1.8, "floor": 25 },
+    "url.identity.false_official": { "group": "identity_deception", "weight": 2.5, "floor": 25 },
+    "page.solicit.credentials_unrelated": { "group": "harmful_solicitation", "weight": 2.2 },
+    "page.solicit.card_false_identity": { "group": "harmful_solicitation", "weight": 2.2 },
+    "page.solicit.recovery_secret": { "group": "harmful_solicitation", "weight": 3.5, "floor": 80 },
+    "page.solicit.deceptive_subscription": { "group": "harmful_solicitation", "weight": 3.2, "floor": 80 },
+    "ocr.domain_mismatch": { "group": "printed_context", "weight": 2.0, "floor": 25 },
+    "ocr.account_mismatch": { "group": "printed_context", "weight": 2.0, "floor": 25 },
+    "ocr.amount_mismatch": { "group": "printed_context", "weight": 1.0 },
+    "intel.quad9_block": { "group": "threat_intel", "weight": 4.5, "floor": 80 },
+    "intel.certpl_listed": { "group": "threat_intel", "weight": 6.0, "floor": 95 },
+    "pay.safe_account_instruction": { "group": "payment_instruction", "weight": 3.5, "floor": 80 },
+    "pay.state_claim_bank_mismatch": { "group": "payment_recipient", "weight": 2.0, "floor": 25 },
+    "pay.context_mismatch": { "group": "payment_recipient", "weight": 2.0, "floor": 25 },
+    "pay.mule_account_reviewed": { "group": "payment_intel", "weight": 6.0, "floor": 95 },
+    "sms.prefilled_premium": { "group": "sms_unsolicited", "weight": 1.6 },
+    "sms.activation_keyword": { "group": "sms_unsolicited", "weight": 0.4 },
+    "sms.deceptive_inducement": { "group": "sms_deception", "weight": 2.5 },
+    "sms.purpose_mismatch": { "group": "sms_mismatch", "weight": 2.0 },
+    "sms.reviewed_abuse": { "group": "sms_intel", "weight": 6.0, "floor": 95 },
+    "phone.foreign_prefix": { "group": "phone_prefix", "weight": 0.1 }
+  }
+}

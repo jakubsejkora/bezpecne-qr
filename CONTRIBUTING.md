@@ -13,7 +13,7 @@ Thanks for helping protect people from QR scams! Czech or English is fine for is
 2. Run the checks locally. There is **no CI and no GitHub Actions**; everything is tested on a developer machine.
    - `node scripts/gen-prototype-data.mjs` validates the corpus against the reference engine.
    - Open `prototype/index.html` and review affected screens.
-   - Once the iOS app exists: `swift test` in `ios/Packages/*` and `xcodebuild test`.
+   - iOS: generate the project and build it as described in [`ios/README.md`](ios/README.md). Once the packages exist: `swift test` in `ios/Packages/*` and `xcodebuild test`.
 3. **Bump the version by +0.0.1** with `scripts/bump-version.sh "Short summary"`. Every change set that touches the app, prototype, rules or data gets a bump (0.0.9 → 0.0.10). It also creates a `CHANGELOG.md` entry; edit it so people can follow what changed.
 4. Open a pull request against `main`. The maintainer reviews and merges.
 

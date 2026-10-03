@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "retrieved": "2026-09-29",
+  "note": "Shorteners and dynamic-QR redirectors hide the destination. When resolved they are neutral (no penalty, no trust); when unresolved the destination is unverified. The full list from PeterDaveHello/url-shorteners (CC BY-SA 4.0, attribution required) will be imported in M2.",
+  "sources": [
+    "Unit 42 — QR codes as an attack vector: https://unit42.paloaltonetworks.com/qr-codes-as-attack-vector/",
+    "PeterDaveHello/url-shorteners (CC BY-SA 4.0): https://github.com/PeterDaveHello/url-shorteners"
+  ],
+  "shorteners": [
+    "bit.ly", "bit.do", "tinyurl.com", "t.ly", "is.gd", "v.gd", "cutt.ly", "rb.gy", "shorturl.at", "s.id", "t.co",
+    "ow.ly", "buff.ly", "rebrand.ly", "bl.ink", "tiny.cc", "j.mp", "goo.gl", "dub.sh", "eepurl.com"
+  ],
+  "qrRedirectors": [
+    "qrco.de", "me-qr.com", "qrs.ly", "qrcc.io", "qr.io", "qrfy.com", "qrfy.io", "get-qr.com", "l.ead.me",
+    "linko.page", "qrcodes.pro", "tapnscan.me", "scnv.io", "flow.page", "hovqr.co", "uqr.me"
+  ]
+}

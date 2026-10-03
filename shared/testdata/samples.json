@@ -167,7 +167,8 @@
         { "id": "url.identity.brand_lookalike", "args": { "brand": "Zásilkovna", "domain": "zasilkovna-doplatek-cz.shop", "official": "zasilkovna.cz" } },
         { "id": "url.identity.false_official", "args": { "brand": "Zásilkovna", "domain": "zasilkovna-doplatek-cz.shop", "official": "zasilkovna.cz" } },
         { "id": "page.solicit.card_false_identity", "args": { "brand": "Zásilkovna" } },
-        { "id": "url.tld.common_legit", "args": { "tld": "shop" } }
+        { "id": "url.tld.common_legit", "args": { "tld": "shop" } },
+        { "id": "url.domain.age_lt30d", "args": { "domain": "zasilkovna-doplatek-cz.shop", "date": "15. 9. 2026" } }
       ],
       "consequences": [],
       "checks": [ { "id": "chk.https_ok" }, { "id": "chk.page_extract", "args": { "summary": "číslo karty kvůli „doplatku 29 Kč“" } } ],
@@ -183,7 +184,8 @@
       "inspection": { "chain": [], "final": null, "domain": { "registered": "2026-09-20", "registry": "CZ.NIC", "quad9": "blocked" } },
       "signals": [
         { "id": "intel.quad9_block", "args": { "domain": "edalnice-uhrada.cz" } },
-        { "id": "url.identity.brand_lookalike", "args": { "brand": "eDálnice", "domain": "edalnice-uhrada.cz", "official": "edalnice.gov.cz" } }
+        { "id": "url.identity.brand_lookalike", "args": { "brand": "eDálnice", "domain": "edalnice-uhrada.cz", "official": "edalnice.gov.cz" } },
+        { "id": "url.domain.age_lt30d", "args": { "domain": "edalnice-uhrada.cz", "date": "20. 9. 2026" } }
       ],
       "consequences": [],
       "checks": [],
@@ -217,6 +219,7 @@
       "signals": [
         { "id": "url.identity.userinfo_trick", "args": { "fake": "www.csob.cz", "real": "csob-overeni.top" } },
         { "id": "url.identity.brand_lookalike", "args": { "brand": "ČSOB", "domain": "csob-overeni.top", "official": "csob.cz" } },
+        { "id": "url.identity.false_official", "args": { "brand": "ČSOB", "domain": "csob-overeni.top", "official": "csob.cz" } },
         { "id": "page.solicit.card_false_identity", "args": { "brand": "ČSOB" } },
         { "id": "url.tld.abused", "args": { "tld": "top" } },
         { "id": "url.domain.age_lt7d", "args": { "days": { "cs": "3 dny", "en": "3 days" }, "domain": "csob-overeni.top", "date": "26. 9. 2026", "registry": "ZDNS" } }
@@ -589,7 +592,7 @@
     {
       "id": "crypto-bitcoin", "group": "payments", "scene": "poster", "symbology": "qr",
       "title": { "cs": "Bitcoinový „dar“", "en": "Bitcoin “donation”" },
-      "payload": "bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4?amount=0.015&label=Dar%20pro%20utulek",
+      "payload": "bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4?amount=0.015&label=Dar%20pro%20%C3%BAtulek",
       "type": "crypto", "engine": "payment",
       "fields": { "network": "Bitcoin", "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4", "amount": "0.015", "unit": "BTC", "label": "Dar pro útulek" },
       "signals": [],

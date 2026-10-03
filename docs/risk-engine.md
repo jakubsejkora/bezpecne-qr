@@ -52,6 +52,12 @@ score = round(100 · sigmoid(baseline + Σ_groups min(cap, combine(weights))))
 2. Links that look like login, confirmation, redemption or unsubscribe URLs, or that contain tokens, are **not** fetched automatically.
 3. Private and special-use addresses are refused.
 
+**The gate in detail** (`LinkGate`, hardened after two rounds of independent security review):
+- One canonical host for every check and for the request itself: lower-case punycode, one trailing dot removed. Hosts with empty labels, percent-escapes or brackets around anything but an IPv6 address are refused as ambiguous, and so are paths with `.`/`..` segments or escapes left after decoding.
+- Mobile-operator sites and carrier-billing hosts are never contacted, on any hop, including as the scanned link. Login and device-link URLs (Steam, Discord) are never contacted either.
+- Tokens: known token parameters, JWTs, UUIDs, long hex and any other opaque parameter value of 24+ characters (marketing labels such as `utm_*` and click IDs excepted). Path segments get a readable-slug exemption for article URLs. Parameter values are decoded up to four more layers and nested URLs or query strings are checked too; a URL nested two levels deep, credentials inside a nested URL, or encoding that can't be resolved (including invalid UTF-8) counts as a token or refuses the link.
+- Store hand-offs (`itms-apps`, `market`…) end a clean walk as complete; after any earlier degradation the inspection stays incomplete.
+
 **How pages are fetched:**
 - HTTPS only. For `http://` links the HTTPS variant is tried and cleartext is never fetched.
 - One streamed GET per hop, with no cookies and no JavaScript.
@@ -81,3 +87,14 @@ A clearly disclosed free trial never qualifies. See [`shared/rules/dcb.json`](..
   - A code that names a state institution but whose account is not at ČNB (0710) gets a Caution explainer.
   - The recipient name inside a code is never verified. Czech banks will only verify payee names for euro payments, from July 2027.
 - **Parking:** official hosts and their expected redirect relationships per city ([`parking.json`](../shared/rules/parking.json)).
+
+## Implementation notes (BQCore)
+
+The Swift engine lives in [`ios/Packages/BQCore`](../ios/Packages/BQCore) (`Parsers/`, `Risk/Detector.swift`, `Risk/Scorer.swift`, `Risk/LinkGate.swift`). `swift test` replays the whole corpus: type, parsed fields, evidence, consequences and band must match for all 80 samples. Decisions taken while implementing:
+
+- **Brand look-alikes** match a brand token as a whole host label or hyphen-separated part. Substring matches need a token of **7+** characters (brands.json allows 6), so legitimate sites such as seznamka.cz don't look like Seznam.cz.
+- **Every observed hop** (the scanned host, redirect targets and the final page) gets the same lexical rules; a signal ID counts once however many hops repeat it.
+- **`url.transport.http`** is dropped when the HTTPS variant of an `http://` link was inspected successfully — that variant is what we checked and what opens.
+- **`url.identity.false_official`**: the page presents itself as a brand (title, headings, logo text) on a domain the brand doesn't own. With a card field it also raises `page.solicit.card_false_identity`.
+- **`page.solicit.credentials_unrelated`**: card, password or SMS-code fields on a page that talks about prizes or gifts, or an HTML form embedded in a `data:` URI.
+- **Domain age** counts from the scan date: under 7 days or under 30 days is weak evidence; older domains only produce a "registered since" check and never add trust.

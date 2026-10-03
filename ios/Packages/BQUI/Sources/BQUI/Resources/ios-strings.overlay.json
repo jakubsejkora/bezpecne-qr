@@ -1,0 +1,201 @@
+{
+  "_note": "iOS-only strings merged over prototype/js/i18n.js by scripts/gen-ui-strings.mjs. Keep cs and en in sync; placeholders use {name}.",
+  "cs": {
+    "a11y.collapsed": "sbaleno",
+    "a11y.expanded": "rozbaleno",
+    "a11y.holdHint": "Dvojitým klepnutím otevřete potvrzení.",
+    "a11y.inputField": "pole k vyplnění",
+    "a11y.meterValue": "{score} ze 100",
+    "a11y.pageButton": "tlačítko na stránce",
+    "a11y.passwordHidden": "Heslo je skryté",
+    "a11y.stepActive": "probíhá",
+    "a11y.stepDone": "hotovo",
+    "a11y.verdictAlert": "{title}. Riziko podvodu {score} ze 100.",
+    "a11y.verdictScored": "Riziko {score} ze 100, {band}",
+
+    "act.holdAltCall": "Nebo zavolat přes potvrzení",
+    "act.holdAltContinue": "Nebo pokračovat přes potvrzení",
+    "act.holdAltInstall": "Nebo instalovat přes potvrzení",
+    "act.holdAltSms": "Nebo připravit SMS přes potvrzení",
+    "act.holdAltSubscribe": "Nebo přihlásit odběr přes potvrzení",
+
+    "ask.email": "e-mail",
+    "ask.otp": "kód z SMS",
+    "ask.personalID": "rodné číslo / doklad",
+    "ask.recoverySecret": "obnovovací fráze / klíče",
+
+    "band.info": "Bez varovných znaků",
+
+    "choose.titleFew": "Našli jsme {n} kódy",
+    "choose.titleMany": "Našli jsme {n} kódů",
+
+    "confirm.callButton": "Zavolat přesto",
+    "confirm.callTitle": "Opravdu zavolat?",
+    "confirm.continueButton": "Pokračovat přesto",
+    "confirm.continueTitle": "Opravdu pokračovat?",
+    "confirm.installButton": "Instalovat přesto",
+    "confirm.installTitle": "Opravdu instalovat?",
+    "confirm.smsButton": "Připravit SMS přesto",
+    "confirm.smsTitle": "Opravdu připravit SMS?",
+    "confirm.subscribeButton": "Přihlásit odběr přesto",
+    "confirm.subscribeTitle": "Opravdu přihlásit odběr kalendáře?",
+
+    "contact.address": "Adresa",
+    "contact.birthday": "Narozeniny",
+    "contact.format": "Formát",
+    "contact.note": "Poznámka",
+
+    "error.camera": "Kameru se nepodařilo spustit.",
+    "error.generic": "Něco se nepovedlo. Zkuste to prosím znovu.",
+    "error.noApp": "Žádná aplikace tento odkaz neumí otevřít.",
+    "error.photos": "Do Fotek nelze ukládat — povolte to v Nastavení.",
+    "error.wifi": "K síti se nepodařilo připojit.",
+
+    "event.allDay": "Celý den",
+
+    "freq.1D": "každý den",
+    "freq.1M": "každý měsíc",
+    "freq.1W": "každý týden",
+    "freq.1Y": "každý rok",
+    "freq.2W": "každé 2 týdny",
+    "freq.3M": "každé čtvrtletí",
+    "freq.6M": "každého půl roku",
+
+    "mail.cc": "Kopie",
+
+    "onb.privacyNote": "Kontrola probíhá v telefonu. Odkazy načítáme bez vašich cookies a skriptů; jen název domény posíláme bezpečnostnímu DNS Quad9 a registru domén. Obojí lze vypnout v Nastavení.",
+
+    "otp.digits": "{n} číslic",
+    "otp.digitsFew": "{n} číslice",
+
+    "pay.standingEvery": "Trvalý příkaz — {freq}",
+    "pay.standingOnly": "Trvalý příkaz",
+
+    "scan.noCode": "Na obrázku jsme nenašli žádný kód — zkuste ostřejší fotku.",
+
+    "sec.rawHidden": "Obsah skryt — citlivý kód se nikde neukládá ani neodesílá.",
+
+    "set.debug": "Vývojářské nástroje",
+    "set.sharingSoon": "Sdílení údajů s týmem Bezpečné QR připravujeme. Zatím nic neodesíláme.",
+
+    "toast.call": "Vytáčím…",
+    "toast.contactSaved": "Uloženo v Kontaktech",
+    "toast.mail": "Otevřeno v Mailu",
+    "toast.manual": "Kontroluji stránku…",
+    "toast.opened": "Otevřeno",
+    "toast.sms": "SMS je připravená ve Zprávách",
+
+    "url.curated": "oficiální návaznost",
+    "url.metaRefresh": "přesměrování ve stránce",
+    "url.openRedirect": "přesměrování přes jiný web",
+    "url.stoppedBudget": "Nenačteno — vyčerpán limit kontroly",
+    "url.stoppedError": "Nenačteno — chyba spojení",
+    "url.stoppedGate": "Nenačteno — z bezpečnostních důvodů",
+    "url.stoppedOperator": "Nenačteno — web mobilního operátora",
+    "url.storeApp": "Obchod s aplikacemi",
+    "url.storeHandoff": "Odkaz se otevře v aplikaci obchodu",
+    "url.stoppedLoop": "Nenačteno — smyčka přesměrování",
+    "url.stoppedTls": "Nenačteno — zabezpečené spojení selhalo",
+
+    "wifi.password": "Heslo"
+  },
+  "en": {
+    "a11y.collapsed": "collapsed",
+    "a11y.expanded": "expanded",
+    "a11y.holdHint": "Double-tap to open a confirmation.",
+    "a11y.inputField": "input field",
+    "a11y.meterValue": "{score} out of 100",
+    "a11y.pageButton": "button on the page",
+    "a11y.passwordHidden": "The password is hidden",
+    "a11y.stepActive": "in progress",
+    "a11y.stepDone": "done",
+    "a11y.verdictAlert": "{title}. Fraud risk {score} out of 100.",
+    "a11y.verdictScored": "Risk {score} out of 100, {band}",
+
+    "act.holdAltCall": "Or call with a confirmation",
+    "act.holdAltContinue": "Or continue with a confirmation",
+    "act.holdAltInstall": "Or install with a confirmation",
+    "act.holdAltSms": "Or prepare the SMS with a confirmation",
+    "act.holdAltSubscribe": "Or subscribe with a confirmation",
+
+    "ask.email": "e-mail",
+    "ask.otp": "SMS code",
+    "ask.personalID": "personal ID / document",
+    "ask.recoverySecret": "recovery phrase / keys",
+
+    "band.info": "No warning signs",
+
+    "choose.titleFew": "We found {n} codes",
+    "choose.titleMany": "We found {n} codes",
+
+    "confirm.callButton": "Call anyway",
+    "confirm.callTitle": "Call anyway?",
+    "confirm.continueButton": "Continue anyway",
+    "confirm.continueTitle": "Continue anyway?",
+    "confirm.installButton": "Install anyway",
+    "confirm.installTitle": "Install anyway?",
+    "confirm.smsButton": "Prepare the SMS anyway",
+    "confirm.smsTitle": "Prepare the SMS anyway?",
+    "confirm.subscribeButton": "Subscribe anyway",
+    "confirm.subscribeTitle": "Subscribe to the calendar anyway?",
+
+    "contact.address": "Address",
+    "contact.birthday": "Birthday",
+    "contact.format": "Format",
+    "contact.note": "Note",
+
+    "error.camera": "The camera couldn’t start.",
+    "error.generic": "Something went wrong. Please try again.",
+    "error.noApp": "No app can open this link.",
+    "error.photos": "Can’t save to Photos — allow it in Settings.",
+    "error.wifi": "Couldn’t join the network.",
+
+    "event.allDay": "All day",
+
+    "freq.1D": "every day",
+    "freq.1M": "every month",
+    "freq.1W": "every week",
+    "freq.1Y": "every year",
+    "freq.2W": "every 2 weeks",
+    "freq.3M": "every quarter",
+    "freq.6M": "every six months",
+
+    "mail.cc": "Cc",
+
+    "onb.privacyNote": "Checks run on your phone. Links are loaded without your cookies or scripts; only the domain name goes to the Quad9 security DNS and the domain registry. Both can be turned off in Settings.",
+
+    "otp.digits": "{n} digits",
+    "otp.digitsFew": "{n} digits",
+
+    "pay.standingEvery": "Standing order — {freq}",
+    "pay.standingOnly": "Standing order",
+
+    "scan.noCode": "We didn’t find a code in this picture — try a sharper photo.",
+
+    "sec.rawHidden": "Content hidden — sensitive codes are never stored or sent.",
+
+    "set.debug": "Developer tools",
+    "set.sharingSoon": "Sharing details with the Bezpečné QR team is coming. Nothing is sent yet.",
+
+    "toast.call": "Calling…",
+    "toast.contactSaved": "Saved in Contacts",
+    "toast.mail": "Opened in Mail",
+    "toast.manual": "Checking the page…",
+    "toast.opened": "Opened",
+    "toast.sms": "The SMS is ready in Messages",
+
+    "url.curated": "official handover",
+    "url.metaRefresh": "in-page redirect",
+    "url.openRedirect": "redirect via another site",
+    "url.stoppedBudget": "Not loaded — check limit reached",
+    "url.stoppedError": "Not loaded — connection error",
+    "url.stoppedGate": "Not loaded — for safety reasons",
+    "url.stoppedOperator": "Not loaded — mobile operator's website",
+    "url.storeApp": "App store",
+    "url.storeHandoff": "The link opens in the store app",
+    "url.stoppedLoop": "Not loaded — redirect loop",
+    "url.stoppedTls": "Not loaded — secure connection failed",
+
+    "wifi.password": "Password"
+  }
+}

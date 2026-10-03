@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "retrieved": "2026-09-29",
+  "rule": "State organisational units, state funds and similar institutions hold accounts at the Czech National Bank (bank code 0710) under Act 218/2000 Sb. If the recipient name or message claims one of these institutions and the account is elsewhere, raise pay.state_claim_bank_mismatch (Caution explainer). 0710 never proves who owns an account. Municipal bodies bank commercially and are excluded.",
+  "sources": [
+    "ČNB — who can hold an account at ČNB: https://www.cnb.cz/cs/casto-kladene-dotazy/Ucty-komu-muze-CNB-vest-ucet-informace-pro-klienty/",
+    "Tax office account prefixes: https://businesscenter.podnikatel.cz/urady/financni-urad/predcisli-uctu-financnich-uradu/"
+  ],
+  "bankCode": "0710",
+  "institutions": [
+    { "id": "policie", "name": { "cs": "Policie ČR", "en": "Police of the Czech Republic" }, "patterns": ["policie cr", "policie ceske republiky", "pcr"] },
+    { "id": "financni", "name": { "cs": "Finanční správa", "en": "Financial Administration" }, "patterns": ["financni urad", "financni sprava", "fu pro"] },
+    { "id": "celni", "name": { "cs": "Celní správa", "en": "Customs Administration" }, "patterns": ["celni urad", "celni sprava"] },
+    { "id": "soud", "name": { "cs": "soud", "en": "court" }, "patterns": ["okresni soud", "krajsky soud", "mestsky soud", "obvodni soud"] },
+    { "id": "cssz", "name": { "cs": "ČSSZ", "en": "Czech Social Security Administration" }, "patterns": ["cssz", "ceska sprava socialniho zabezpeceni"] },
+    { "id": "ministerstvo", "name": { "cs": "ministerstvo", "en": "ministry" }, "patterns": ["ministerstvo"] }
+  ],
+  "excluded": ["mestska policie", "magistrat", "mestsky urad", "obecni urad", "urad mestske casti"]
+}
