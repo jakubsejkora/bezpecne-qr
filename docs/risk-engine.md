@@ -55,7 +55,8 @@ score = round(100 · sigmoid(baseline + Σ_groups min(cap, combine(weights))))
 **The gate in detail** (`LinkGate`, hardened after two rounds of independent security review):
 - One canonical host for every check and for the request itself: lower-case punycode, one trailing dot removed. Hosts with empty labels, percent-escapes or brackets around anything but an IPv6 address are refused as ambiguous, and so are paths with `.`/`..` segments or escapes left after decoding.
 - Mobile-operator sites and carrier-billing hosts are never contacted, on any hop, including as the scanned link. Login and device-link URLs (Steam, Discord) are never contacted either.
-- Tokens: known token parameters, JWTs, UUIDs, long hex and any other opaque value of 24+ characters, unless it reads as a slug of words. Parameter values are decoded up to four more layers and nested URLs or query strings are checked too; a URL nested two levels deep, or encoding that can't be resolved, counts as a token.
+- Tokens: known token parameters, JWTs, UUIDs, long hex and any other opaque parameter value of 24+ characters (marketing labels such as `utm_*` and click IDs excepted). Path segments get a readable-slug exemption for article URLs. Parameter values are decoded up to four more layers and nested URLs or query strings are checked too; a URL nested two levels deep, credentials inside a nested URL, or encoding that can't be resolved (including invalid UTF-8) counts as a token or refuses the link.
+- Store hand-offs (`itms-apps`, `market`…) end a clean walk as complete; after any earlier degradation the inspection stays incomplete.
 
 **How pages are fetched:**
 - HTTPS only. For `http://` links the HTTPS variant is tried and cleartext is never fetched.

@@ -185,6 +185,11 @@ struct JourneyView: View {
         for (index, hop) in chain.enumerated() {
             let host = URL(string: hop.url)?.host.map(HostFormat.display) ?? hop.url
             let last = index == chain.count - 1
+            // A clean walk that ends by handing the link to App Store / Google Play: that is the destination.
+            if last, isStoreHandOff(hop), analysis.completeness.state == .complete {
+                out.append(Stop(id: index, host: lang.t("url.storeApp"), meta: lang.t("url.storeHandoff"), state: .final))
+                return out
+            }
             let state: State = hop.stopped != nil ? .stopped : (last && final != nil ? .final : .normal)
             out.append(Stop(id: index, host: host, meta: meta(hop, lang), state: state))
         }
@@ -192,6 +197,11 @@ struct JourneyView: View {
             out.append(Stop(id: out.count, host: nil, meta: lang.t("url.unknownTarget"), state: .unknown))
         }
         return out
+    }
+
+    static func isStoreHandOff(_ hop: Hop) -> Bool {
+        guard let scheme = URL(string: hop.url)?.scheme?.lowercased() else { return false }
+        return Analyzer.storeSchemes.contains(scheme)
     }
 
     static func meta(_ hop: Hop, _ lang: Language) -> String {

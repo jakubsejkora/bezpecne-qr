@@ -28,7 +28,8 @@ All notable changes to Bezpečné QR are documented here.
 - Risk engine details are documented in `docs/risk-engine.md` (implementation notes).
 
 ### Security
-- An independent review of the link checker (Codex) found 16 issues — e.g. trailing-dot hosts bypassing the billing stop, tokens hidden in nested URLs, network-specific NAT64 and special-purpose IPv6 ranges, unvetted RDAP redirects, multi-member gzip. All were fixed before release; operator sites are now never contacted, not even as the scanned link.
+- An independent review of the link checker and its gate (Codex, three rounds) found 16 issues in round 1 and further edge cases in rounds 2 and 3. Examples: trailing-dot, percent-encoded and bracketed hosts slipping past the billing stop; tokens hidden in nested or multiply encoded parameters; NAT64 and special-purpose IPv6 ranges; unvetted RDAP redirects and certificate-issuer downloads; multi-member gzip; stalled or oversized pages reported as complete; a crash on malformed nested parameters. All were fixed with tests before build 3; round 3 ended at "ship after fixes" and those fixes are in.
+- The link checker connects only to vetted public IPv4 addresses (the system handles NAT64), never contacts mobile-operator or carrier-billing hosts, and sends a name to Quad9/RDAP only after it resolved to public addresses.
 
 ## [0.0.2] - 2026-10-02
 

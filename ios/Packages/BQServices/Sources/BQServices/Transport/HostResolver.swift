@@ -72,22 +72,16 @@ public struct SystemResolver: HostResolver {
 /// before every connection, and `LinkInspector` before a name may leave the device for the public
 /// domain checks (a split-DNS name that points into a private network must not).
 public protocol HostVetting: Sendable {
-    /// The vetted addresses `host` (a hostname or an IP literal) may be contacted at.
+    /// The vetted IPv4 addresses `host` (a hostname or an IP literal) may be contacted at.
     func vet(_ host: String, deadline: Deadline) async throws(FetchError) -> [BQCore.IPAddress]
 }
 
-/// `HostVetting` with the system resolver and NAT64 prefix discovery.
+/// `HostVetting` with the system resolver.
 public struct AddressVetter: HostVetting {
     let resolver: any HostResolver
-    let translation: TranslationPrefixes
 
     public init(resolver: any HostResolver = SystemResolver()) {
-        self.init(resolver: resolver, translation: .shared)
-    }
-
-    init(resolver: any HostResolver, translation: TranslationPrefixes) {
         self.resolver = resolver
-        self.translation = translation
     }
 
     public func vet(_ host: String, deadline: Deadline) async throws(FetchError) -> [BQCore.IPAddress] {
@@ -98,15 +92,13 @@ public struct AddressVetter: HostVetting {
             }
         }
         if deadline.hasPassed { throw .timeout }
-        let translation = self.translation
-        async let context = translation.context(deadline: deadline)
         let addresses: [IPAddress]
         if let literal = IPAddress(host) {
             addresses = [literal]
         } else {
             addresses = try await resolver.resolve(host, deadline: deadline)
         }
-        return try AddressPolicy.vet(addresses, context: await context)
+        return try AddressPolicy.vet(addresses)
     }
 }
 
@@ -120,32 +112,30 @@ extension SystemResolver {
 
 /// The address rules for every connection `SafeFetcher` makes.
 enum AddressPolicy {
-    /// Refuses the whole name when any address is not public: a name that also points into a
-    /// private network is never contacted, whichever address would have been picked. An IPv6
-    /// address inside a discovered NAT64 prefix stands for its embedded IPv4 address, which must be
-    /// public too. When IPv6 answers can't be vetted (see `TranslationContext.trustsIPv6`), only the
-    /// IPv4 answers are used — the system translates them itself — and an IPv6-only answer fails.
-    static func vet(_ addresses: [IPAddress], context: TranslationContext) throws(FetchError) -> [IPAddress] {
+    /// Every answer must be public: one non-public answer, of either family, refuses the whole name
+    /// (DNS rebinding / SSRF), whichever address would have been picked. Connections then go only to
+    /// the IPv4 answers. An IPv6 answer can't be shown to be native: any NAT64 translator on the
+    /// network — with a prefix nothing tells us about (RFC 7050 §5.1) — may turn it into a private
+    /// IPv4 destination. On NAT64 networks the system synthesizes IPv6 for a vetted IPv4 address
+    /// itself. A name with IPv6 answers only is `unverifiableAddress`.
+    static func vet(_ addresses: [IPAddress]) throws(FetchError) -> [IPAddress] {
         guard !addresses.isEmpty else { throw .nameNotResolved }
-        for address in addresses {
-            guard address.isPublic else { throw .nonPublicAddress }
-            for prefix in context.prefixes {
-                if let embedded = prefix.embeddedV4(address), !embedded.isPublic { throw .nonPublicAddress }
-            }
-        }
-        if context.trustsIPv6 { return addresses }
+        guard addresses.allSatisfy(\.isPublic) else { throw .nonPublicAddress }
         let v4 = addresses.filter { $0.family == .v4 }
         guard !v4.isEmpty else { throw .unverifiableAddress }
         return v4
     }
 
-    /// At most two addresses to race: the resolver's first choice and the first address of the
-    /// other family (or, with a single family, the next address).
+    /// At most two vetted addresses to race, in the resolver's order.
     static func candidates(_ vetted: [IPAddress]) -> [IPAddress] {
-        guard let first = vetted.first else { return [] }
-        if let other = vetted.first(where: { $0.family != first.family }) { return [first, other] }
-        return Array(vetted.prefix(2))
+        Array(vetted.prefix(2))
     }
+
+    /// Positions of the embedded IPv4 bytes for each NAT64 prefix length (RFC 6052 §2.2). Byte 8
+    /// (bits 64–71) is never used and must be zero for prefixes shorter than /96.
+    static let nat64Layouts: [Int: [Int]] = [
+        32: [4, 5, 6, 7], 40: [5, 6, 7, 9], 48: [6, 7, 9, 10], 56: [7, 9, 10, 11], 64: [9, 10, 11, 12], 96: [12, 13, 14, 15],
+    ]
 
     /// Whether the connection's remote address is the vetted one. When the system reaches a vetted
     /// IPv4 address through NAT64, the synthesized address (RFC 6052, any prefix length) embeds
@@ -153,7 +143,7 @@ enum AddressPolicy {
     static func isBound(observed: IPAddress, vetted: IPAddress) -> Bool {
         if observed == vetted { return true }
         guard vetted.family == .v4, observed.family == .v6 else { return false }
-        return NAT64Prefix.layouts.contains { length, positions in
+        return nat64Layouts.contains { length, positions in
             (length == 96 || observed.bytes[8] == 0) && positions.map({ observed.bytes[$0] }) == vetted.bytes
         }
     }

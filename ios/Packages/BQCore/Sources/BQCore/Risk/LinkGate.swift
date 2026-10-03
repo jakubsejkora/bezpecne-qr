@@ -112,6 +112,15 @@ public struct LinkGate: Sendable {
         let invalidEscape = "%(?![0-9A-Fa-f]{2})"
         if c.percentEncodedPath.matches(invalidEscape) || (c.percentEncodedQuery ?? "").matches(invalidEscape)
             || (c.percentEncodedFragment ?? "").matches(invalidEscape) { return true }
+        // Escapes that don't decode (e.g. invalid UTF-8) hide a parameter from the gate while the
+        // request still sends it.
+        func decodes(_ raw: String) -> Bool { !raw.contains("%") || raw.removingPercentEncoding != nil }
+        if !c.percentEncodedPath.split(separator: "/").allSatisfy({ decodes(String($0)) }) { return true }
+        for pair in (c.percentEncodedQuery ?? "").split(separator: "&") {
+            let kv = pair.split(separator: "=", maxSplits: 1).map(String.init)
+            if !kv.allSatisfy({ decodes($0.replacingOccurrences(of: "+", with: " ")) }) { return true }
+        }
+        if let fragment = c.percentEncodedFragment, !decodes(fragment) { return true }
         let residual = "%[0-9A-Fa-f]{2}"
         if c.path.matches(residual) { return true }
         let segments = c.path.split(separator: "/", omittingEmptySubsequences: false)
@@ -161,9 +170,10 @@ public struct LinkGate: Sendable {
         for item in c.queryItems ?? [] {
             if isTokenKey(item.name) { return true }
             guard let v = item.value, !v.isEmpty else { continue }
-            if LinkGate.looksLikeToken(v) { return true }
+            let opaqueCounts = !LinkGate.isNonSecretParameter(item.name)
+            if opaqueCounts, LinkGate.looksLikeToken(v) { return true }
             // A URL (or query string) nested in a parameter is sent with the outer request: check it too.
-            if nestedHasToken(v, depth: depth) { return true }
+            if nestedHasToken(v, depth: depth, opaqueCounts: opaqueCounts) { return true }
         }
         if let fragment = c.fragment {
             let lower = fragment.lowercased()
@@ -175,11 +185,17 @@ public struct LinkGate: Sendable {
         return false
     }
 
+    /// Parameters that carry marketing labels or click IDs, never credentials.
+    static func isNonSecretParameter(_ name: String) -> Bool {
+        let n = name.lowercased()
+        return n.hasPrefix("utm_") || ["gclid", "fbclid", "msclkid", "dclid", "mc_cid", "ref", "lang", "locale", "q", "query", "search"].contains(n)
+    }
+
     /// Checks a parameter value (decoded once by URLComponents) that may hide a URL, a query string
     /// or a token behind further layers of percent-encoding. It never assigns untrusted text to
     /// Foundation's percent-encoded properties (they trap on invalid escapes), and it fails closed:
     /// anything it can't resolve within its limits counts as a token.
-    private func nestedHasToken(_ value: String, depth: Int) -> Bool {
+    private func nestedHasToken(_ value: String, depth: Int, opaqueCounts: Bool = true) -> Bool {
         // Peel up to four more layers ("%25253F" is a "?" three layers down).
         var layers = [value]
         var current = value
@@ -191,10 +207,12 @@ public struct LinkGate: Sendable {
         if let next = current.removingPercentEncoding, next != current { return true }
 
         for layer in layers {
-            if LinkGate.looksLikeToken(layer) { return true }
+            if opaqueCounts, LinkGate.looksLikeToken(layer) { return true }
             guard layer.contains("://") || layer.contains("=") || layer.contains("?") else { continue }
             if depth >= 2 { return true }   // a URL inside a URL inside a URL: fail closed
             if layer.contains("://"), let inner = URLComponents(string: LinkParser.percentEncodeNonASCII(layer)) {
+                // Credentials inside a nested URL travel in the outer request's query.
+                if inner.percentEncodedUser != nil || inner.percentEncodedPassword != nil { return true }
                 let host = LinkGate.canonicalHost(inner.encodedHost)
                 if inner.encodedHost != nil, host == nil { return true }
                 if let host, SensitiveLinks.isLoginLink(host: host, path: inner.path) { return true }
@@ -203,7 +221,7 @@ public struct LinkGate: Sendable {
             }
             let query = layer.split(separator: "?", maxSplits: 1).last.map(String.init) ?? layer
             for pair in LinkGate.pairs(query) {
-                if isTokenKey(pair.key) || LinkGate.looksLikeToken(pair.value) { return true }
+                if isTokenKey(pair.key) || (!LinkGate.isNonSecretParameter(pair.key) && LinkGate.looksLikeToken(pair.value)) { return true }
                 if !pair.value.isEmpty, pair.value != layer, nestedHasToken(pair.value, depth: depth + 1) { return true }
             }
         }
@@ -235,7 +253,9 @@ public struct LinkGate: Sendable {
         if v.matches("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$") { return true }
         if v.count >= 24, v.matches("^[0-9a-fA-F]+$") { return true }
         guard v.count >= 24, v.matches("^[A-Za-z0-9_=+/.~-]+$") else { return false }
-        return !isReadableSlug(v)
+        // Article slugs live in paths; an opaque-looking parameter value counts as a token even
+        // when its chunks look pronounceable.
+        return pathSegment ? !isReadableSlug(v) : true
     }
 
     /// "podvod-qr-kod-parkovani.A250101_120000_domaci_jkk" is readable: nearly every part is a word,

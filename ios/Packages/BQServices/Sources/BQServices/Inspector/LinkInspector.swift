@@ -223,6 +223,12 @@ public actor LinkInspector {
             case .notNeeded:
                 return walk.stop(Hop(url: display, stopped: .gate), Completeness(.notNeeded, reason: IncompleteReason.notLoaded(walk.current)))
             case .refuse(let refusal):
+                // A redirect or refresh that hands over to an app store (apps.apple.com → itms-appss://)
+                // ends the walk where it should: complete — unless something earlier in the walk
+                // was incomplete, which `stop` keeps.
+                if walk.hopIndex > 0, refusal == .unsupportedScheme, LinkInspector.isStoreHandOff(walk.current) {
+                    return walk.stop(Hop(url: display, stopped: .gate), .complete)
+                }
                 return walk.stop(Hop(url: display, stopped: .gate), Completeness(.incomplete, reason: IncompleteReason.refused(refusal)))
             }
 
@@ -291,8 +297,11 @@ public actor LinkInspector {
             } else if LinkInspector.isHTML(response) {
                 progress(.readingPage)
                 let analysis = analyzer.analyze(response.body, charset: response.charset, url: target,
-                                                refreshHeader: response.headers["refresh"])
-                if analysis.truncated { walk.degrade(IncompleteReason.pageTruncated) }
+                                                refreshHeader: response.headers["refresh"], deadline: walk.deadline)
+                if analysis.truncated {
+                    // Not examined to the end: a limit, or the deadline / cancellation stopped the analysis.
+                    walk.degrade(walk.deadline.hasPassed ? IncompleteReason.timeout : IncompleteReason.pageTruncated)
+                }
                 if let refresh = analysis.refresh, refresh.delay <= LinkInspector.maxRefreshDelay,
                    let destination = refresh.url, LinkInspector.loopKey(destination) != key {
                     if hop.kind == nil { hop.kind = .metaRefresh }
@@ -394,6 +403,12 @@ public actor LinkInspector {
         case .fetch(let u), .upgrade(let u): return u.asciiHost
         default: return fallback.asciiHost
         }
+    }
+
+    /// An app-store scheme from BQCore's approved list (`Analyzer.storeSchemes`).
+    static func isStoreHandOff(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased() else { return false }
+        return Analyzer.storeSchemes.contains(scheme)
     }
 
     /// The URL as recorded in the chain: no credentials, no fragment.

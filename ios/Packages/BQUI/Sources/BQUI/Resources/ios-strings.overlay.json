@@ -92,6 +92,8 @@
     "url.stoppedError": "Nenačteno — chyba spojení",
     "url.stoppedGate": "Nenačteno — z bezpečnostních důvodů",
     "url.stoppedOperator": "Nenačteno — web mobilního operátora",
+    "url.storeApp": "Obchod s aplikacemi",
+    "url.storeHandoff": "Odkaz se otevře v aplikaci obchodu",
     "url.stoppedLoop": "Nenačteno — smyčka přesměrování",
     "url.stoppedTls": "Nenačteno — zabezpečené spojení selhalo",
 
@@ -189,6 +191,8 @@
     "url.stoppedError": "Not loaded — connection error",
     "url.stoppedGate": "Not loaded — for safety reasons",
     "url.stoppedOperator": "Not loaded — mobile operator's website",
+    "url.storeApp": "App store",
+    "url.storeHandoff": "The link opens in the store app",
     "url.stoppedLoop": "Not loaded — redirect loop",
     "url.stoppedTls": "Not loaded — secure connection failed",
 

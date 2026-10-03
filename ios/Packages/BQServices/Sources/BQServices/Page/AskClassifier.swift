@@ -94,8 +94,8 @@ enum AskClassifier {
         for sentence in line.split(whereSeparator: { ".!?;".contains($0) }) {
             let tokens = normalized(String(sentence)).split(separator: " ").map(String.init)
             guard let verbIndex = tokens.firstIndex(where: verbs.contains) else { continue }
-            // Only what follows the verb is its object.
-            let tail = " " + tokens[verbIndex...].joined(separator: " ") + " "
+            // Only the words right after the verb are its object (this also bounds the matching work).
+            let tail = " " + tokens[verbIndex..<min(tokens.count, verbIndex + 16)].joined(separator: " ") + " "
             var found: [(position: String.Index, kind: AskKind)] = []
             for (kind, phrases) in instructionObjects {
                 if let first = phrases.compactMap({ tail.range(of: " \($0) ")?.lowerBound }).min() {

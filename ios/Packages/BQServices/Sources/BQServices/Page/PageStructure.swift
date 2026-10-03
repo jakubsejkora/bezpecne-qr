@@ -55,12 +55,15 @@ struct PageStructure {
     var links: [String] = []
     /// `action` values of every form ("" when absent), unresolved.
     var formActions: [String] = []
-    /// A limit stopped reading before the end: lines, fields, labels or forms beyond it are missing.
+    /// Something was not read: a limit or the time budget stopped the analysis, or a tag, line,
+    /// field, label, form or link beyond a limit is missing.
     var truncated = false
     var baseHref: String?
     var metaRefresh: String?
-    /// Inline JavaScript (bounded) and event-handler attribute values.
-    var scripts: [String] = []
+    /// Literal navigation targets found in inline scripts and event handlers, unresolved (only
+    /// http(s) or relative ones). Scripts themselves are not kept.
+
+    var scriptNavigations: [String] = []
 
     /// A label without surrounding whitespace, a trailing colon or a required-field asterisk.
     static func cleanLabel(_ s: String) -> String {
@@ -70,18 +73,20 @@ struct PageStructure {
     }
 }
 
-/// Builds a `PageStructure` from tokens. Bounded: element depth, line count and script bytes.
+/// Builds a `PageStructure` from tokens in time linear in the input: every token is handled in
+/// amortized constant time apart from its own text, and line text is normalized as it is appended.
+/// Every limit that drops content sets `truncated`.
 struct PageStructureBuilder {
     struct Limits {
         var maxDepth = 512
         var maxLines = 10_000
         /// Text blocks are kept whole for analysis (the extract shortens them for display).
         var maxLineLength = 100_000
-        var maxScriptBytes = 256 * 1024
         var maxFields = 500
         var maxLabels = 1_000
         var maxForms = 200
         var maxLinks = 50
+        var maxScriptNavigations = 100
     }
 
     private enum Item {
@@ -123,6 +128,10 @@ struct PageStructureBuilder {
 
     let limits: Limits
     private var stack: [Frame] = []
+    /// Open elements by name, so an end tag finds its element without scanning the stack.
+    private var openCounts: [String: Int] = [:]
+    /// Open `svg` / `math` elements (foreign content).
+    private var foreignDepth = 0
     private var items: [Item] = []
     private var fields: [PageStructure.Field] = []
     /// The `<label>` wrapping each field, if any (parallel to `fields`).
@@ -131,7 +140,6 @@ struct PageStructureBuilder {
     private var labelStack: [Int] = []
     private var button: String?
     private var heading: (level: Int, text: String)?
-    private var scriptBytes = 0
     /// Whether the most recent `script` start tag holds JavaScript (not JSON or templates).
     private var scriptIsJavaScript = false
     private var out = PageStructure()
@@ -143,15 +151,15 @@ struct PageStructureBuilder {
     static func build(_ tokens: [HTMLTokenizer.Token], limits: Limits = Limits()) -> PageStructure {
         var builder = PageStructureBuilder(limits: limits)
         for token in tokens { builder.consume(token) }
-        return builder.finish()
+        return builder.finish(budget: .unlimited)
     }
 
     /// Tokenizes and builds in one pass, without holding the tokens.
     static func build(html: [UInt8], tokenizerLimits: HTMLTokenizer.Limits = HTMLTokenizer.Limits(),
-                      limits: Limits = Limits()) -> PageStructure {
+                      limits: Limits = Limits(), budget: AnalysisBudget = .unlimited) -> PageStructure {
         var builder = PageStructureBuilder(limits: limits)
-        let completed = HTMLTokenizer.tokenize(html, limits: tokenizerLimits) { builder.consume($0) }
-        var page = builder.finish()
+        let completed = HTMLTokenizer.tokenize(html, limits: tokenizerLimits, budget: budget) { builder.consume($0) }
+        var page = builder.finish(budget: budget)
         if !completed { page.truncated = true }
         return page
     }
@@ -209,9 +217,14 @@ struct PageStructureBuilder {
 
         if visible, !PageStructureBuilder.isHidden(tag) { content(tag) }
 
-        let isVoid = PageStructureBuilder.voidElements.contains(name) || tag.selfClosing && (name == "svg" || stack.contains { $0.name == "svg" || $0.name == "math" })
+        let foreign = name == "svg" || name == "math"
+        let isVoid = PageStructureBuilder.voidElements.contains(name) || tag.selfClosing && (foreign || foreignDepth > 0)
         let rawOrRCDATA = HTMLTokenizer.rawTextElements.contains(name) || HTMLTokenizer.rcdataElements.contains(name)
-        guard !isVoid, !rawOrRCDATA, stack.count < limits.maxDepth else { return }
+        guard !isVoid, !rawOrRCDATA else { return }
+        guard stack.count < limits.maxDepth else {
+            out.truncated = true // deeper structure (hidden or skipped parts) is not tracked
+            return
+        }
 
         let parent = stack.last
         stack.append(Frame(
@@ -220,6 +233,8 @@ struct PageStructureBuilder {
             skip: (parent?.skip ?? false) || PageStructureBuilder.skipElements.contains(name),
             inert: (parent?.inert ?? false) || name == "template"
         ))
+        openCounts[name, default: 0] += 1
+        if foreign { foreignDepth += 1 }
         if PageStructureBuilder.blockElements.contains(name) { blockBreak() }
         if name == "td" || name == "th" { items.append(.cellBreak) }
     }
@@ -275,8 +290,8 @@ struct PageStructureBuilder {
         case "base":
             if out.baseHref == nil, let href = tag["href"] { out.baseHref = href }
         case "a", "area":
-            if let href = tag["href"], out.links.count < limits.maxLinks, PageStructureBuilder.isNoteworthyLink(href) {
-                out.links.append(href)
+            if let href = tag["href"], PageStructureBuilder.isNoteworthyLink(href) {
+                if out.links.count < limits.maxLinks { out.links.append(href) } else { out.truncated = true }
             }
         case "form":
             if out.formActions.count < limits.maxForms {
@@ -292,7 +307,7 @@ struct PageStructureBuilder {
         }
         // Inline event handlers can navigate too (onload="location.href='…'").
         for (attribute, value) in tag.attributes where attribute.hasPrefix("on") && !value.isEmpty {
-            addScript(value)
+            scanScript(value)
         }
     }
 
@@ -301,7 +316,8 @@ struct PageStructureBuilder {
             if visible { blockBreak() }
             return
         }
-        guard let index = stack.lastIndex(where: { $0.name == name }) else { return }
+        // Without an open element of that name there is nothing to close (and nothing to scan for).
+        guard openCounts[name, default: 0] > 0, let index = stack.lastIndex(where: { $0.name == name }) else { return }
         pop(through: index)
     }
 
@@ -309,9 +325,9 @@ struct PageStructureBuilder {
         guard !inert else { return }
         switch tag {
         case "title":
-            if out.title == nil, !stack.contains(where: { $0.name == "svg" || $0.name == "math" }) { out.title = content }
+            if out.title == nil, foreignDepth == 0 { out.title = content }
         case "script":
-            if scriptIsJavaScript { addScript(content) }
+            if scriptIsJavaScript { scanScript(content) }
         default:
             break
         }
@@ -322,6 +338,8 @@ struct PageStructureBuilder {
     private mutating func pop(through index: Int) {
         while stack.count > index {
             let frame = stack.removeLast()
+            openCounts[frame.name, default: 1] -= 1
+            if frame.name == "svg" || frame.name == "math" { foreignDepth -= 1 }
             let wasVisible = !frame.inert && !frame.hidden && !frame.skip
             switch frame.name {
             case "label":
@@ -343,7 +361,8 @@ struct PageStructureBuilder {
     }
 
     private mutating func closeHead() {
-        if let index = stack.lastIndex(where: { $0.name == "head" }) { pop(through: index) }
+        guard openCounts["head", default: 0] > 0, let index = stack.lastIndex(where: { $0.name == "head" }) else { return }
+        pop(through: index)
     }
 
     private mutating func blockBreak() {
@@ -379,12 +398,17 @@ struct PageStructureBuilder {
         items.append(.field(fields.count - 1))
     }
 
-    private mutating func addScript(_ content: String) {
-        guard scriptBytes < limits.maxScriptBytes, !content.isEmpty else { return }
-        let room = limits.maxScriptBytes - scriptBytes
-        let piece = content.utf8.count <= room ? content : String(decoding: content.utf8.prefix(room), as: UTF8.self)
-        scriptBytes += piece.utf8.count
-        out.scripts.append(piece)
+    /// Looks for literal navigations in a script as it arrives, so no script text is kept and none
+    /// is skipped, however large. Beyond the kept number the page counts as truncated.
+    private mutating func scanScript(_ content: String) {
+        guard !content.isEmpty else { return }
+        for literal in ScriptRedirects.literals(in: content) {
+            guard out.scriptNavigations.count < limits.maxScriptNavigations else {
+                out.truncated = true
+                return
+            }
+            out.scriptNavigations.append(literal)
+        }
     }
 
     static func isHidden(_ tag: HTMLTag) -> Bool {
@@ -396,7 +420,7 @@ struct PageStructureBuilder {
 
     // MARK: - Pass 2: items to lines
 
-    private mutating func finish() -> PageStructure {
+    private mutating func finish(budget: AnalysisBudget) -> PageStructure {
         if let open = button { emitButton(open) }
         // Resolve labels: `for` first, then wrapping.
         var labelByID: [String: String] = [:]
@@ -410,13 +434,13 @@ struct PageStructureBuilder {
         }
 
         var lines: [PageStructure.Line] = []
-        var current = ""
+        var current = LineBuffer(limit: limits.maxLineLength)
         var pendingSeparator = false
         var truncatedLines = false
 
         func flush() {
-            let text = collapse(current)
-            current = ""
+            if current.overflowed { truncatedLines = true }
+            let text = current.take()
             pendingSeparator = false
             guard !text.isEmpty else { return }
             append(PageStructure.Line(text: text, kind: .text))
@@ -435,22 +459,21 @@ struct PageStructureBuilder {
         }
 
         for item in items {
+            if budget.spend() {
+                truncatedLines = true
+                break
+            }
             switch item {
             case .text(let t):
-                if pendingSeparator, !collapse(t).isEmpty {
-                    current += " · "
-                    pendingSeparator = false
-                }
-                current += t
+                // Table cells on one row are joined with " · " (only between cells that have text).
+                if current.append(t, separator: pendingSeparator ? " · " : nil) { pendingSeparator = false }
             case .blockBreak:
                 flush()
             case .cellBreak:
-                pendingSeparator = !collapse(current).isEmpty
+                pendingSeparator = !current.isEmpty
             case .field(let i):
-                let preceding = collapse(current)
-                if fields[i].labelText == nil, !preceding.isEmpty, preceding.count <= 60 {
-                    fields[i].precedingText = preceding
-                    current = ""
+                if fields[i].labelText == nil, !current.isEmpty, current.count <= 60, !current.overflowed {
+                    fields[i].precedingText = current.take()
                     pendingSeparator = false
                 } else {
                     flush()
@@ -484,9 +507,74 @@ struct PageStructureBuilder {
     }
 
     static func normalize(_ s: String) -> String {
-        let invisible: Set<Unicode.Scalar> = ["\u{00AD}", "\u{200B}", "\u{200C}", "\u{200D}", "\u{2060}", "\u{FEFF}"]
-        var scalars = String.UnicodeScalarView()
-        scalars.append(contentsOf: s.unicodeScalars.lazy.filter { !invisible.contains($0) })
-        return String(scalars).split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+        var line = LineBuffer(limit: .max)
+        line.append(s)
+        return line.take()
+    }
+}
+
+/// A line of page text built as it arrives: whitespace collapsed, invisible characters (soft
+/// hyphen, zero-width space and joiners, BOM) dropped, capped. Each character is looked at once,
+/// however many pieces the line is assembled from.
+struct LineBuffer {
+    static let invisible: Set<Unicode.Scalar> = ["\u{00AD}", "\u{200B}", "\u{200C}", "\u{200D}", "\u{2060}", "\u{FEFF}"]
+
+    let limit: Int
+    private(set) var text = ""
+    /// Unicode scalars in `text`.
+    private(set) var count = 0
+    /// Text beyond `limit` was dropped.
+    private(set) var overflowed = false
+    private var pendingSpace = false
+
+    init(limit: Int) {
+        self.limit = limit
+    }
+
+    var isEmpty: Bool { count == 0 }
+
+    /// Appends `s`. `separator` replaces the space before its first visible character when the line
+    /// already has text. Returns whether anything visible was appended.
+    @discardableResult
+    mutating func append(_ s: String, separator: String? = nil) -> Bool {
+        var separator = separator
+        var appended = false
+        for scalar in s.unicodeScalars {
+            if LineBuffer.invisible.contains(scalar) { continue }
+            if scalar.properties.isWhitespace {
+                if count > 0 { pendingSpace = true }
+                continue
+            }
+            guard count < limit else {
+                overflowed = true
+                return appended
+            }
+            if count > 0 {
+                if let separator {
+                    text += separator
+                    count += separator.unicodeScalars.count
+                } else if pendingSpace {
+                    text.unicodeScalars.append(" ")
+                    count += 1
+                }
+            }
+            separator = nil
+            pendingSpace = false
+            text.unicodeScalars.append(scalar)
+            count += 1
+            appended = true
+        }
+        return appended
+    }
+
+    /// The line so far; the buffer starts over.
+    mutating func take() -> String {
+        defer {
+            text = ""
+            count = 0
+            pendingSpace = false
+            overflowed = false
+        }
+        return text
     }
 }

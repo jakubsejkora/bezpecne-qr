@@ -11,9 +11,9 @@ Extension-safe, no third-party dependencies, iOS 18 / macOS 15, Swift 6 strict c
 |---|---|
 | `LinkInspector` (actor) | `inspect(_:options:manualOverride:progress:) async -> Inspection`. Walks redirects (`Location`, meta refresh ≤ 10 s, known open redirectors), runs `LinkGate` before every hop, analyses the final page, runs Quad9 + RDAP concurrently. Never throws. |
 | `SafeFetcher` | One HTTP/1.1 GET over Network.framework per call (`HTTPTransport`). Vets, binds, verifies TLS, parses and decodes within budgets. |
-| `AddressVetter` (`HostVetting`) | System resolver + address rules, including NAT64 prefix discovery (RFC 7050, cached per network path). Used before every connection and before a name may go to the public checks. |
+| `AddressVetter` (`HostVetting`) | System resolver + address rules (every answer public; only IPv4 answers are connected to). Used before every connection and before a name may go to the public checks. |
 | `HTTPResponseParser`, `BodyDecoder`, `Inflate` | Pure RFC 9112 parser; content decoding. gzip and deflate use our own bit-exact RFC 1951 decoder (after puff.c), Brotli the Compression framework. No libz. |
-| `PageAnalyzer` | Bounded, streaming HTML tokenizer of our own → `PageFacts`: title, extract (`Label: [          ]`, `[ Button ]`), asks, offer + promise (dcb.json patterns), brand claim, install link, remote-access tools, foreign form hosts; plus meta-refresh and JS-redirect candidates. No WebKit, no `NSAttributedString` HTML import, nothing executed or fetched. Reports when a limit stopped it (`truncated`). |
+| `PageAnalyzer` | Bounded, streaming HTML tokenizer of our own → `PageFacts`: title, extract (`Label: [          ]`, `[ Button ]`), asks, offer + promise (dcb.json patterns), brand claim, install link, remote-access tools, foreign form hosts; plus meta-refresh and JS-redirect candidates. No WebKit, no `NSAttributedString` HTML import, nothing executed or fetched. Linear in the input, stops at the inspector's deadline or on cancellation, and reports anything it did not read (`truncated`). |
 | `Quad9Client` | One RFC 8484 DoH POST (type A, EDNS padding, no ECS). Block = NXDOMAIN with an empty authority section (or EDE Blocked/Filtered); NXDOMAIN with an SOA is a non-existent name, not a block. Cached by TTL, backs off after 429/5xx. |
 | `RDAPClient` | Registration date (`yyyy-MM-dd`, Europe/Prague) via the bundled IANA bootstrap. HTTPS only, no redirects, 1 request/s per registry, coalesced (each caller keeps its own deadline), cached 1 h, backs off on 429/503. Missing data is unknown, never "old". |
 | `URLSessionEndpointClient` | URLSession (ephemeral) for Quad9 and RDAP: our own server-trust evaluation (as in SafeFetcher), never follows redirects, never answers auth challenges, streams the body and cancels past 256 KiB. |
@@ -32,13 +32,12 @@ caches, back-off and request spacing hold however many inspectors exist.
   are skipped, private/local/odd targets refused, operator and carrier-billing hosts never contacted
   (`stopped: billing`). Ambiguous `Location` values (backslash, whitespace, controls) are refused.
 - **Address vetting.** Every A/AAAA answer of the system resolver must be public; one non-public
-  answer refuses the name (DNS rebinding / SSRF). NAT64: the network's translation prefixes are
-  discovered from the AAAA records synthesized for `ipv4only.arpa` (RFC 7050, all RFC 6052
-  layouts /32–/96) and cached per network path; an IPv6 answer inside such a prefix must embed a
-  public IPv4 address. IPv6 answers are used only when a prefix was discovered: without one (no
-  DNS64, or discovery failed) a translator with an unknown prefix may exist even on dual-stack
-  networks, so only IPv4 answers are used — the system translates them where needed — and an
-  IPv6-only answer fails (`unverifiableAddress`). On most networks that means IPv4 only.
+  answer, of either family, refuses the name (DNS rebinding / SSRF). Connections go only to IPv4
+  answers: an IPv6 answer can't be shown to be native — any NAT64 translator on the network, with
+  a prefix nothing tells us about (RFC 7050 §5.1), may turn it into a private IPv4 destination —
+  while on NAT64 networks the system synthesizes IPv6 for a vetted IPv4 address itself (that
+  synthesized peer is accepted by the binding check). IPv6-only names and IPv6 literals fail
+  (`unverifiableAddress`) and the inspection is incomplete.
 - **Hosts.** Brackets are accepted only around an IPv6 literal (`https://[o2platba.cz]/` is refused
   before DNS, SNI or `Host`). Resolver errors other than "no such name" are `resolverFailed`.
 - **Binding.** Connections go to the vetted IP endpoints (≤ 2 raced, 250 ms stagger), never the
@@ -74,7 +73,12 @@ caches, back-off and request spacing hold however many inspectors exist.
   accounted for before the response is classified or followed anywhere, so the inspection ends
   incomplete (`inc.page_truncated` / `inc.timeout`) — whether the response was a page, something
   unrecognizable, an open-redirect interstitial or a meta refresh. A page the analyzer could not
-  read to the end counts the same.
+  read to the end counts the same: any limit that drops content (attributes, names or values of a
+  tag, lines, fields, labels, forms, links, script navigations, element depth) or the deadline.
+  Script text is scanned as it arrives, never cut.
+- **App-store hand-off.** A redirect or meta refresh to an approved store scheme
+  (`Analyzer.storeSchemes`: itms-apps, itms-appss, itms, macappstore, macappstores, market) ends
+  the walk complete — unless anything earlier in the walk was incomplete, which stays the reason.
 - No logging.
 
 ## Budgets (defaults, `InspectionOptions`)
@@ -88,7 +92,7 @@ caches, back-off and request spacing hold however many inspectors exist.
 | Decoded page / all pages | 2 MiB / 4 MiB |
 | Body as sent, per page | max(1 MiB, page budget) |
 | Domain-check response | 256 KiB |
-| Analyzer | 4 MiB of HTML, 1 M tokens, 10 000 lines, 500 fields, 200 forms (reported when reached) |
+| Analyzer | 4 MiB of HTML, 1 M tokens, 64 attributes / 64-char names / 8 KiB values per tag, 10 000 lines of ≤ 100 000 chars, 500 fields, 1 000 labels, 200 forms, 100 script navigations, depth 512 — all reported when reached; the walk's deadline |
 | Extract | 40 lines × 200 chars |
 
 ## Completeness reasons
@@ -120,8 +124,9 @@ BQ_LIVE_TESTS=1 swift test                   # plus live tests: example.com, par
 
 Unit tests cover request serialization, parser fixtures at random fragmentation, the DEFLATE
 decoder (stored/fixed/dynamic blocks, exact end, fuzzing), gzip members, zlib Adler-32, Brotli and
-bombs, address vetting through the resolver path (no connection is ever created for a private or
-NAT64-private answer), NAT64 prefix discovery and caching, the endpoint client over a mock
+bombs, address vetting through the resolver path (no connection is ever created for a private
+answer or to an IPv6 answer), adversarial pages (linear time, deadline, cancellation, reported
+limits), app-store hand-offs, the endpoint client over a mock
 URLProtocol (no redirects, streaming cap), DNS encoding/decoding and the Quad9 block rule (real
 captured answers), RDAP parsing and coalescing, the page analyzer on realistic pages and the
 inspector with a fake transport and vetter.

@@ -50,14 +50,16 @@ struct OfferDetector: Sendable {
     /// - Parameters:
     ///   - blocks: visible text lines in reading order (buttons included).
     ///   - asksForPhoneOrCode: the page has a phone or SMS-code field (a sign-up context).
-    func detect(blocks: [String], asksForPhoneOrCode: Bool) -> Match? {
+    ///   - budget: when it runs out, detection stops without a match (the caller reports truncation).
+    func detect(blocks: [String], asksForPhoneOrCode: Bool, budget: AnalysisBudget = .unlimited) -> Match? {
         var subscriptionOnly: (match: Match, sentence: String)?
         for (index, block) in blocks.enumerated() {
             for sentence in OfferDetector.sentences(block) {
+                if budget.spend() { return nil }
                 let folded = sentence.folded
                 if let rate = rateLocation(folded) {
                     var match = Match(text: OfferDetector.quote(sentence, around: rate), block: index)
-                    attachPromise(to: &match, blocks: blocks, chargeSentence: sentence)
+                    attachPromise(to: &match, blocks: blocks, chargeSentence: sentence, budget: budget)
                     return match
                 }
                 if subscriptionOnly == nil, OfferDetector.matches(subscription, folded),
@@ -73,7 +75,7 @@ struct OfferDetector: Sendable {
             }
         }
         guard var candidate = subscriptionOnly else { return nil }
-        attachPromise(to: &candidate.match, blocks: blocks, chargeSentence: candidate.sentence)
+        attachPromise(to: &candidate.match, blocks: blocks, chargeSentence: candidate.sentence, budget: budget)
         return candidate.match
     }
 
@@ -84,8 +86,14 @@ struct OfferDetector: Sendable {
         let prices = price.matches(in: folded, range: range).map(\.range)
         guard !prices.isEmpty else { return nil }
         let intervals = interval.matches(in: folded, range: range).map(\.range)
+        guard !intervals.isEmpty else { return nil }
+        // Both lists are in text order, so one walk finds each price's nearest intervals (the last
+        // one starting before it and the first one starting after it): linear, not prices × intervals.
+        var j = 0
         for p in prices {
-            for i in intervals {
+            while j < intervals.count, intervals[j].location < p.location { j += 1 }
+            for k in [j - 1, j] where k >= 0 && k < intervals.count {
+                let i = intervals[k]
                 let gap = max(i.location - (p.location + p.length), p.location - (i.location + i.length))
                 if gap <= OfferDetector.proximity, let r = Range(p, in: folded) {
                     return folded.distance(from: folded.startIndex, to: r.lowerBound)
@@ -98,11 +106,12 @@ struct OfferDetector: Sendable {
     /// The first promise on the page, strongest kind first. None when the charge (or the promise
     /// itself) is plainly presented as a trial, and a "free" claim in the charge's own sentence
     /// ("zdarma, poté 99 Kč týdně") is a disclosure, not a contradicting promise.
-    private func attachPromise(to match: inout Match, blocks: [String], chargeSentence: String) {
+    private func attachPromise(to match: inout Match, blocks: [String], chargeSentence: String, budget: AnalysisBudget) {
         if OfferDetector.matches(OfferDetector.trial, chargeSentence.folded) { return }
         for tier in OfferDetector.promiseTiers {
             for (index, block) in blocks.enumerated() {
                 for sentence in OfferDetector.sentences(block) where !(index == match.block && sentence == chargeSentence) {
+                    if budget.spend() { return }
                     for clause in OfferDetector.clauses(sentence) {
                         let folded = clause.folded
                         let range = NSRange(folded.startIndex..., in: folded)

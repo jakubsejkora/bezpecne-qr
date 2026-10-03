@@ -124,13 +124,15 @@ struct RealWorldTests {
         #expect(a.band == .safe)
     }
 
-    @Test func appStoreHandOffIsComplete() {
-        let inspection = Inspection(chain: [Hop(url: "https://apps.apple.com/cz/app/id1234567890", status: 301),
-                                            Hop(url: "itms-appss://apps.apple.com/cz/app/id1234567890", stopped: .gate)],
-                                    completeness: Completeness(.incomplete, reason: "inc.refused_scheme"))
-        let a = analyzer.analyze(ScannedCode(text: "https://apps.apple.com/cz/app/id1234567890"), inspection: inspection)
-        #expect(a.completeness.state == .complete)
-        #expect(a.band == .safe)
+    @Test func appStoreHandOffIsDecidedByTheInspector() {
+        // A clean walk that ends in the store app is complete (the inspector says so)…
+        let clean = Inspection(chain: [Hop(url: "https://apps.apple.com/cz/app/id1234567890", status: 301),
+                                       Hop(url: "itms-appss://apps.apple.com/cz/app/id1234567890", stopped: .gate)],
+                               completeness: .complete)
+        #expect(analyzer.analyze(ScannedCode(text: "https://apps.apple.com/cz/app/id1234567890"), inspection: clean).band == .safe)
+        // …and a degraded one is not promoted by the analyzer.
+        let degraded = Inspection(chain: clean.chain, completeness: Completeness(.incomplete, reason: "inc.refused_scheme"))
+        #expect(analyzer.analyze(ScannedCode(text: "https://apps.apple.com/cz/app/id1234567890"), inspection: degraded).completeness.state == .incomplete)
     }
 
     @Test func operatorWebsiteIsExplainedNotAlarmed() {

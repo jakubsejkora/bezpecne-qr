@@ -51,15 +51,20 @@ public struct PageAnalyzer: Sendable {
     ///   - charset: the `Content-Type` charset parameter, if any.
     ///   - url: the page URL, for resolving links, forms and refresh targets.
     ///   - refreshHeader: the value of a `Refresh` response header, if any.
-    public func analyze(_ body: Data, charset: String?, url: URL, refreshHeader: String? = nil) -> PageAnalysis {
+    ///   - deadline: the analysis stops when it passes (or the task is cancelled) and reports
+    ///     `truncated`. Work is linear in the input either way.
+    public func analyze(_ body: Data, charset: String?, url: URL, refreshHeader: String? = nil,
+                        deadline: Deadline? = nil) -> PageAnalysis {
+        let budget = AnalysisBudget(deadline: deadline)
         let text = TextDecoding.decode(body.prefix(limits.maxInputBytes), declaredCharset: charset)
-        let page = PageStructureBuilder.build(html: Array(text.utf8))
+        let page = PageStructureBuilder.build(html: Array(text.utf8), budget: budget)
         let base = PageAnalyzer.base(page.baseHref, page: url)
 
         // What the page asks for, in order of appearance.
         var asks: [AskKind] = []
         func add(_ kind: AskKind) { if !asks.contains(kind) { asks.append(kind) } }
         for line in page.lines {
+            if budget.spend() { break }
             switch line.kind {
             case .field(let i): AskClassifier.classify(page.fields[i]).map(add)
             case .text: AskClassifier.instructions(in: line.text).forEach(add)
@@ -72,7 +77,8 @@ public struct PageAnalyzer: Sendable {
             if case .field = line.kind { return "" }
             return line.text
         }
-        let match = offers?.detect(blocks: blocks, asksForPhoneOrCode: asks.contains(.phone) || asks.contains(.otp))
+        let match = budget.exhausted ? nil
+            : offers?.detect(blocks: blocks, asksForPhoneOrCode: asks.contains(.phone) || asks.contains(.otp), budget: budget)
 
         let (extract, extractIndex) = makeExtract(page.lines, keep: [match?.block, match?.promiseBlock].compactMap { $0 },
                                                   offerText: match?.text)
@@ -81,7 +87,7 @@ public struct PageAnalyzer: Sendable {
         }
 
         let refresh = (page.metaRefresh ?? refreshHeader).flatMap { PageAnalyzer.parseRefresh($0, base: base) }
-        let scriptRedirects = ScriptRedirects.candidates(in: page.scripts, base: base)
+        let scriptRedirects = ScriptRedirects.resolve(page.scriptNavigations, base: base)
         // At most a "Redirecting…" line besides the script redirect.
         let nearlyEmpty = page.lines.count <= 2 && page.lines.allSatisfy { $0.kind == .text && $0.text.count <= 60 }
         let scriptOnly = nearlyEmpty && !scriptRedirects.isEmpty
@@ -97,7 +103,7 @@ public struct PageAnalyzer: Sendable {
             foreignFormHosts: PageAnalyzer.foreignFormHosts(page.formActions, base: base, pageHost: url.asciiHost)
         )
         return PageAnalysis(facts: facts, refresh: refresh, scriptRedirects: scriptRedirects, scriptOnly: scriptOnly,
-                            truncated: page.truncated || body.count > limits.maxInputBytes)
+                            truncated: page.truncated || budget.exhausted || body.count > limits.maxInputBytes)
     }
 
     // MARK: - Extract
@@ -142,17 +148,19 @@ public struct PageAnalyzer: Sendable {
     }
 
     /// Where a page presents its identity: title, h1, og:site_name, h2 and logo-like image alt
-    /// texts (article photos — "Koncert v O2 areně" — are not identity claims).
+    /// texts (article photos — "Koncert v O2 areně" — are not identity claims). Only the start of
+    /// each counts: an identity is stated up front, and this bounds the matching work.
     private func claimTexts(_ page: PageStructure) -> [String] {
         let logos = page.imageAlts.prefix(10).filter { alt in
-            let words = AskClassifier.normalized(alt).split(separator: " ")
+            let words = AskClassifier.normalized(String(alt.prefix(200))).split(separator: " ")
             return words.contains("logo") || words.count <= 4
         }
-        return [page.title].compactMap { $0 }
+        let texts = [page.title].compactMap { $0 }
             + page.headings.filter { $0.level == 1 }.map(\.text)
             + [page.ogSiteName].compactMap { $0 }
             + page.headings.filter { $0.level == 2 }.map(\.text)
             + logos
+        return texts.map { String($0.prefix(300)) }
     }
 
     // MARK: - Interpretation helpers
@@ -273,21 +281,34 @@ enum ScriptRedirects {
         #"\blocation\s*\.\s*(?:replace|assign)\s*\(\s*["']([^"'\s]{1,2048})["']\s*\)"#,
     ].map { try! NSRegularExpression(pattern: $0) }
 
-    static func candidates(in scripts: [String], base: URL, limit: Int = 5) -> [URL] {
-        var urls: [URL] = []
-        for script in scripts {
-            let range = NSRange(script.startIndex..., in: script)
-            for pattern in patterns {
-                for m in pattern.matches(in: script, range: range) {
-                    guard let r = Range(m.range(at: 1), in: script) else { continue }
-                    let literal = script[r].replacingOccurrences(of: "\\/", with: "/")
-                    guard let url = URL(string: literal, relativeTo: base)?.absoluteURL,
-                          let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https", url.asciiHost != nil,
-                          !urls.contains(url) else { continue }
-                    urls.append(url)
-                    if urls.count >= limit { return urls }
+    /// Navigation literals in one script, in order: absolute http(s) or relative targets only
+    /// (`javascript:` and other schemes are not page navigations we could follow).
+    static func literals(in script: String) -> [String] {
+        let range = NSRange(script.startIndex..., in: script)
+        var found: [(location: Int, literal: String)] = []
+        for pattern in patterns {
+            for m in pattern.matches(in: script, range: range) {
+                guard let r = Range(m.range(at: 1), in: script) else { continue }
+                let literal = script[r].replacingOccurrences(of: "\\/", with: "/")
+                if let colon = literal.firstIndex(of: ":"), !literal[..<colon].contains("/") {
+                    let scheme = literal[..<colon].lowercased()
+                    guard scheme == "http" || scheme == "https" else { continue }
                 }
+                found.append((m.range.location, literal))
             }
+        }
+        return found.sorted { $0.location < $1.location }.map(\.literal)
+    }
+
+    /// The literals as absolute http(s) URLs against the page's base, without duplicates.
+    static func resolve(_ literals: [String], base: URL, limit: Int = 5) -> [URL] {
+        var urls: [URL] = []
+        for literal in literals {
+            guard let url = URL(string: literal, relativeTo: base)?.absoluteURL,
+                  let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https", url.asciiHost != nil,
+                  !urls.contains(url) else { continue }
+            urls.append(url)
+            if urls.count >= limit { break }
         }
         return urls
     }

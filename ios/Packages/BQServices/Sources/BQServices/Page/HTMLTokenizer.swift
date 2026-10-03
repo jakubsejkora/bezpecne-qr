@@ -44,10 +44,13 @@ enum HTMLTokenizer {
     }
 
     /// Hands each token to `emit` as it is read, so a large page never exists as a token array.
-    /// Returns false when the token limit stopped it before the end of the input.
+    /// Returns false when anything was lost: the token limit or the budget stopped it before the end,
+    /// or a tag had more attributes, or a longer name or value, than the limits keep.
     @discardableResult
-    static func tokenize(_ input: [UInt8], limits: Limits = Limits(), emit: (Token) -> Void) -> Bool {
+    static func tokenize(_ input: [UInt8], limits: Limits = Limits(), budget: AnalysisBudget = .unlimited,
+                         emit: (Token) -> Void) -> Bool {
         var count = 0
+        var lossy = false
         func emitToken(_ token: Token) {
             emit(token)
             count += 1
@@ -62,7 +65,7 @@ enum HTMLTokenizer {
             text.removeAll(keepingCapacity: true)
         }
 
-        while i < n, count < limits.maxTokens {
+        while i < n, count < limits.maxTokens, !budget.spend() {
             let b = input[i]
             guard b == 0x3C, i + 1 < n else { // '<'
                 text.append(b)
@@ -83,8 +86,9 @@ enum HTMLTokenizer {
             } else if next == 0x2F { // "</"
                 if i + 2 < n, isASCIILetter(input[i + 2]) {
                     flushText()
-                    let (tag, end) = parseTag(input, from: i + 2, limits: limits)
+                    let (tag, end, cut) = parseTag(input, from: i + 2, limits: limits)
                     i = end
+                    if cut { lossy = true }
                     if let tag { emitToken(.endTag(tag.name)) }
                 } else if i + 2 < n, input[i + 2] == 0x3E { // "</>" is ignored
                     flushText()
@@ -95,8 +99,9 @@ enum HTMLTokenizer {
                 }
             } else if isASCIILetter(next) {
                 flushText()
-                let (parsed, end) = parseTag(input, from: i + 1, limits: limits)
+                let (parsed, end, cut) = parseTag(input, from: i + 1, limits: limits)
                 i = end
+                if cut { lossy = true }
                 guard let tag = parsed else { break } // EOF inside a tag: the tag is dropped
                 emitToken(.startTag(tag))
                 if rawTextElements.contains(tag.name) || rcdataElements.contains(tag.name) {
@@ -118,19 +123,20 @@ enum HTMLTokenizer {
         }
         let completed = i >= n
         flushText()
-        return completed
+        return completed && !lossy
     }
 
     // MARK: - Tags
 
     /// Parses a tag name and attributes starting at the name's first byte. Returns nil when the
-    /// input ends inside the tag.
-    private static func parseTag(_ b: [UInt8], from start: Int, limits: Limits) -> (HTMLTag?, Int) {
+    /// input ends inside the tag; `cut` when a name, value or attribute was dropped by a limit.
+    private static func parseTag(_ b: [UInt8], from start: Int, limits: Limits) -> (HTMLTag?, Int, cut: Bool) {
         let n = b.count
         var i = start
         var name: [UInt8] = []
+        var cut = false
         while i < n, !isSpace(b[i]), b[i] != 0x2F, b[i] != 0x3E {
-            if name.count < limits.maxNameLength { name.append(lower(b[i])) }
+            if name.count < limits.maxNameLength { name.append(lower(b[i])) } else { cut = true }
             i += 1
         }
         var attributes: [String: String] = [:]
@@ -140,7 +146,7 @@ enum HTMLTokenizer {
             guard i < n else { break }
             if b[i] == 0x3E { // '>'
                 let tag = HTMLTag(name: String(decoding: name, as: UTF8.self), attributes: attributes, selfClosing: selfClosing)
-                return (tag, i + 1)
+                return (tag, i + 1, cut)
             }
             if b[i] == 0x2F { // '/'
                 selfClosing = i + 1 < n && b[i + 1] == 0x3E
@@ -152,7 +158,7 @@ enum HTMLTokenizer {
             var attrName: [UInt8] = [b[i]]
             i += 1
             while i < n, !isSpace(b[i]), b[i] != 0x2F, b[i] != 0x3E, b[i] != 0x3D {
-                if attrName.count < limits.maxNameLength { attrName.append(lower(b[i])) }
+                if attrName.count < limits.maxNameLength { attrName.append(lower(b[i])) } else { cut = true }
                 i += 1
             }
             attrName[0] = lower(attrName[0])
@@ -165,23 +171,28 @@ enum HTMLTokenizer {
                     let quote = b[i]
                     i += 1
                     while i < n, b[i] != quote {
-                        if value.count < limits.maxAttributeValue { value.append(b[i]) }
+                        if value.count < limits.maxAttributeValue { value.append(b[i]) } else { cut = true }
                         i += 1
                     }
                     i += 1 // closing quote (or past the end)
                 } else {
                     while i < n, !isSpace(b[i]), b[i] != 0x3E {
-                        if value.count < limits.maxAttributeValue { value.append(b[i]) }
+                        if value.count < limits.maxAttributeValue { value.append(b[i]) } else { cut = true }
                         i += 1
                     }
                 }
             }
             let key = String(decoding: attrName, as: UTF8.self)
-            if attributes[key] == nil, attributes.count < limits.maxAttributes {
-                attributes[key] = HTMLEntities.decode(value, inAttribute: true)
+            // The first of duplicate attributes wins (as in browsers); that loses nothing.
+            if attributes[key] == nil {
+                if attributes.count < limits.maxAttributes {
+                    attributes[key] = HTMLEntities.decode(value, inAttribute: true)
+                } else {
+                    cut = true
+                }
             }
         }
-        return (nil, n)
+        return (nil, n, cut)
     }
 
     /// Finds `</name` followed by whitespace, '/' or '>' (ASCII case-insensitive). Returns where the

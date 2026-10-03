@@ -471,6 +471,60 @@ struct LinkInspectorTests {
         #expect(transport.requested.isEmpty)
     }
 
+    // MARK: App-store hand-off
+
+    @Test func storeHandOffEndsACleanWalkComplete() async {
+        // The live App Store case: apps.apple.com answers 301 to itms-appss://.
+        let appStore = FakeTransport(["https://apps.apple.com/cz/app/id1234567890":
+                                        FakeTransport.redirect("itms-appss://apps.apple.com/cz/app/id1234567890", status: 301)])
+        let result = await inspect("https://apps.apple.com/cz/app/id1234567890", transport: appStore)
+        #expect(result.chain == [Hop(url: "https://apps.apple.com/cz/app/id1234567890", status: 301),
+                                 Hop(url: "itms-appss://apps.apple.com/cz/app/id1234567890", stopped: .gate)])
+        #expect(result.completeness == .complete)
+        #expect(appStore.requested == ["https://apps.apple.com/cz/app/id1234567890"])
+        // Google Play, by redirect.
+        let play = FakeTransport(["https://short-bq.cz/app": FakeTransport.redirect("market://details?id=cz.example.app")])
+        #expect(await inspect("https://short-bq.cz/app", transport: play).completeness == .complete)
+        // Other schemes are still refusals.
+        let other = FakeTransport(["https://short-bq.cz/x": FakeTransport.redirect("intent://scan/#Intent;scheme=zxing;end")])
+        #expect(await inspect("https://short-bq.cz/x", transport: other).completeness == Completeness(.incomplete, reason: "inc.refused_scheme"))
+        // A store link scanned directly is not a hand-off the walk observed.
+        let none = FakeTransport { _ in .failure(.connectionFailed) }
+        #expect(await inspect("itms-appss://apps.apple.com/cz/app/id1", transport: none).completeness
+            == Completeness(.incomplete, reason: "inc.refused_scheme"))
+        #expect(none.requested.isEmpty)
+    }
+
+    @Test func storeHandOffKeepsEarlierIncompleteness() async {
+        // An interrupted page whose meta refresh hands over to the App Store stays incomplete.
+        let cut = FakeTransport(["https://lure-bq.cz/": FakeTransport.html(
+            "<meta http-equiv=refresh content='0;url=itms-appss://apps.apple.com/cz/app/id1234567890'><p>Přesměrování", bodyState: .interrupted)])
+        let result = await inspect("https://lure-bq.cz/", transport: cut)
+        #expect(result.chain.last == Hop(url: "itms-appss://apps.apple.com/cz/app/id1234567890", stopped: .gate))
+        #expect(result.completeness == Completeness(.incomplete, reason: "inc.page_truncated"))
+        // The same after a stalled body.
+        let stalled = FakeTransport(["https://lure-bq.cz/": FakeTransport.html(
+            "<meta http-equiv=refresh content='0;url=market://details?id=x'>", bodyState: .timedOut)])
+        #expect(await inspect("https://lure-bq.cz/", transport: stalled).completeness == Completeness(.incomplete, reason: "inc.timeout"))
+    }
+
+    // MARK: Analysis limits
+
+    @Test func aPageTheAnalyzerCouldNotReadFullyIsIncomplete() async {
+        let padding = (0..<64).map { "data-a\($0)=1" }.joined(separator: " ")
+        let crowded = FakeTransport { _ in FakeTransport.html("<form><input \(padding) type=password name=pin></form>") }
+        #expect(await inspect("https://crowded-bq.cz/", transport: crowded).completeness == Completeness(.incomplete, reason: "inc.page_truncated"))
+        // A walk that runs out of time while analysing ends incomplete (and doesn't stall).
+        let big = (Pages.dcb + String(repeating: "<p>Odstavec textu.</p>", count: 50_000))
+        let slow = FakeTransport { _ in FakeTransport.html(big) }
+        var options = InspectionOptions()
+        options.overallDeadline = .milliseconds(30)
+        let start = ContinuousClock.now
+        let result = await inspect("https://big-bq.cz/", transport: slow, options: options)
+        #expect(ContinuousClock.now - start < .seconds(2))
+        #expect(result.completeness?.state == .incomplete)
+    }
+
     // MARK: Incompleteness survives page-derived navigation
 
     @Test func aStalledBodyIsNeverComplete() async {

@@ -160,12 +160,6 @@ public struct Analyzer: Sendable {
                     evidence.removeAll { $0.id == "url.transport.http" }
                     if case .link(let info) = parsed.content, let upgraded = info.upgraded { openURL = URL(string: upgraded) }
                 }
-                // App Store / Google Play links end in a hand-off to the store app: that is the destination.
-                if completeness.state == .incomplete, completeness.reason == "inc.refused_scheme",
-                   let scheme = inspection.chain.last.flatMap({ URL(string: $0.url)?.scheme?.lowercased() }),
-                   Analyzer.storeSchemes.contains(scheme) {
-                    completeness = .complete
-                }
                 if inspection.domain?.quad9 == .blocked, inspection.page == nil, inspection.completeness == nil {
                     completeness = Completeness(.notNeeded, reason: "inc.domain_blocked")
                 }
@@ -209,8 +203,8 @@ public struct Analyzer: Sendable {
 
     // MARK: Helpers
 
-    /// Schemes that hand a link over to an app store.
-    static let storeSchemes: Set<String> = ["itms-apps", "itms-appss", "itms", "macappstore", "macappstores", "market"]
+    /// Schemes that hand a link over to an app store (the inspector ends a clean walk there).
+    public static let storeSchemes: Set<String> = ["itms-apps", "itms-appss", "itms", "macappstore", "macappstores", "market"]
 
     /// The scanned URL with IDN hosts in punycode, so the browser opens what we checked.
     static func openableString(_ info: LinkInfo) -> String {

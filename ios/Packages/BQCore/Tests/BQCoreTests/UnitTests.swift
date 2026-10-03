@@ -199,6 +199,23 @@ struct GateTests {
         #expect(OpenRedirect.innerTarget(of: URL(string: "https://www.google.com/url?q=https://benign.cz/")!) != nil)
     }
 
+    // Codex review round 3.
+    @Test func undecodableEscapesAreRefused() {
+        #expect(decision("https://example.cz/go?next=https%3A%2F%2Fexample.org%2Fx%3Ftoken%3Dabc%26label%3D%FF") == .refuse(.ambiguous))
+        #expect(decision("https://example.cz/%FF/x") == .refuse(.ambiguous))
+    }
+
+    @Test func nestedCredentialsAreSecrets() {
+        #expect(decision("https://example.cz/go?next=https%3A%2F%2Falice%3As3cr3t%40example.org%2F") == .skip(reason: "inc.token_skipped", manual: false))
+    }
+
+    @Test func pronounceableOpaqueParametersAreTokens() {
+        #expect(decision("https://example.cz/x?v=aqzeyupw-xueipqzr-eouazvpk") == .skip(reason: "inc.token_skipped", manual: false))
+        // Marketing labels on poster links stay fetchable.
+        let poster = "https://www.example.cz/?utm_source=qr&utm_medium=plakat&utm_campaign=podzim_2026_vyprodej_zimni_bundy"
+        #expect(decision(poster) == .fetch(URL(string: poster)!))
+    }
+
     @Test func ambiguousEncodingIsRefused() {
         #expect(decision("https://example.cz/x?%2574oken=x") == .refuse(.ambiguous))
         #expect(decision("https://example.cz/%256cogin") == .refuse(.ambiguous))

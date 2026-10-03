@@ -9,9 +9,9 @@ import Security
 /// Per request:
 /// 1. The hostname is resolved with the system resolver and **every** A/AAAA record is vetted with
 ///    `IPAddress.isPublic`; one non-public record refuses the name (DNS-rebinding / SSRF guard).
-///    IPv6 answers inside the network's NAT64 prefix (discovered per RFC 7050) are vetted by the
-///    IPv4 address they embed; where that prefix is unknown on an IPv6-only network, IPv6 answers
-///    are not used (`AddressVetter`).
+///    Only the IPv4 answers are connected to: an IPv6 answer could reach a private destination
+///    through a NAT64 translator, while on NAT64 networks the system synthesizes IPv6 for a vetted
+///    IPv4 address itself (`AddressVetter`).
 /// 2. `NWConnection`s go to the vetted IP endpoints themselves (never the hostname), racing at most
 ///    two addresses with a short stagger. TLS ≥ 1.2, SNI and certificate verification use the
 ///    original hostname against the system anchors, with issuer/revocation network fetches off.

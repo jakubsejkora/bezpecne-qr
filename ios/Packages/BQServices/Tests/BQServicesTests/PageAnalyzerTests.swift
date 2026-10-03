@@ -362,6 +362,70 @@ struct PageAnalyzerTests {
         #expect(analyze(wall).facts.offer?.text.contains("99 Kč/týden") == true)
     }
 
+    @Test func droppedAttributesAreReported() {
+        // 64 harmless attributes, then type=password: the 65th attribute is beyond the limit.
+        let padding = (0..<64).map { "data-a\($0)=\"1\"" }.joined(separator: " ")
+        let crowded = analyze("<form><input \(padding) type=password name=pin></form>")
+        #expect(crowded.truncated)
+        #expect(!crowded.facts.asks.contains(.password)) // not seen — hence the page can't count as complete
+        // A name or value longer than the limits keep.
+        #expect(analyze("<a href='/" + String(repeating: "a", count: 9000) + ".apk'>x</a>").truncated)
+        #expect(analyze("<input " + String(repeating: "x", count: 70) + "=1>").truncated)
+        #expect(analyze("<" + "input" + String(repeating: "x", count: 70) + ">").truncated)
+        // Duplicates lose nothing (the first wins, as in browsers).
+        let duplicate = analyze("<input type=password type=text name=pin>")
+        #expect(!duplicate.truncated)
+        #expect(duplicate.facts.asks == [.password])
+    }
+
+    @Test func scriptContentIsNeverDiscarded() {
+        // A navigation after 300 KiB of script is still found.
+        let padding = "var x = '" + String(repeating: "a", count: 300 * 1024) + "';"
+        let page = analyze("<script>\(padding) location.href = 'https://evil-bq.top/x';</script>", url: "https://example-page.cz/")
+        #expect(page.scriptRedirects == [URL(string: "https://evil-bq.top/x")!])
+        #expect(page.scriptOnly)
+        #expect(!page.truncated)
+        // javascript: targets are not navigations we could follow, and don't crowd out real ones.
+        let junk = String(repeating: "location.href='javascript:void(0)';", count: 200)
+        #expect(analyze("<script>\(junk) location.replace('/next')</script>", url: "https://example-page.cz/").scriptRedirects
+            == [URL(string: "https://example-page.cz/next")!])
+        // Beyond the number kept, the page counts as truncated.
+        let many = (0...100).map { "location.href='/p\($0)';" }.joined()
+        #expect(analyze("<p>Obsah stránky</p><script>\(many)</script>").truncated)
+    }
+
+    @Test func analysisIsLinear() {
+        // 180 000 cells in one table row (1.8 MB): each cell used to re-read the whole row.
+        let table = "<table><tr>" + String(repeating: "<td>x</td>", count: 180_000) + "</tr></table>"
+        let start = ContinuousClock.now
+        let result = analyze(table)
+        #expect(ContinuousClock.now - start < .seconds(10))
+        #expect(result.truncated) // the row is longer than a line may be
+        // Many end tags against a deep stack, and self-closing tags in foreign content.
+        let deep = String(repeating: "<div>", count: 512) + String(repeating: "</x>", count: 400_000)
+        let svg = "<svg>" + String(repeating: "<g/>", count: 400_000) + "</svg>"
+        let sentence = "<p>" + String(repeating: "1 Kč den ", count: 100_000) + "</p>"
+        for html in [deep, svg, sentence] {
+            let t = ContinuousClock.now
+            _ = analyze(html)
+            #expect(ContinuousClock.now - t < .seconds(10))
+        }
+    }
+
+    @Test func deadlineAndCancellationStopTheAnalysis() async {
+        let page = Data((Pages.dcb + String(repeating: "<p>Odstavec textu.</p>", count: 20_000)).utf8)
+        let url = URL(string: "https://example-page.cz/")!
+        let late = analyzer.analyze(page, charset: "utf-8", url: url, deadline: .now - .seconds(1))
+        #expect(late.truncated)
+        let cancelled = Task {
+            try? await Task.sleep(for: .seconds(30)) // returns as soon as the task is cancelled
+            return analyzer.analyze(page, charset: "utf-8", url: url, deadline: .now + .seconds(60))
+        }
+        cancelled.cancel()
+        #expect(await cancelled.value.truncated)
+        #expect(!analyzer.analyze(page, charset: "utf-8", url: url, deadline: .now + .seconds(60)).truncated)
+    }
+
     @Test func installAndRemoteAccessLinksSurviveLinkHeavyPages() {
         let filler = (1...800).map { "<a href='/clanek/\($0)'>Článek \($0)</a>" }.joined()
         let f = analyze(filler + "<a href='https://cdn-bq.top/aplikace.apk?v=2'>Stáhnout</a><a href='https://anydesk.com/cs'>Podpora</a>",
