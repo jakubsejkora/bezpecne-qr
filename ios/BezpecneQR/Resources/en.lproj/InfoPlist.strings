@@ -1,0 +1,5 @@
+/* Usage descriptions shown by iOS when the app first asks for access. */
+"NSCameraUsageDescription" = "We only use the camera to read QR codes. We don't store photos.";
+"NSPhotoLibraryAddUsageDescription" = "We save a payment QR code to Photos so your banking app can read it.";
+"NSContactsUsageDescription" = "We add the contact from a QR code to Contacts only when you ask.";
+"NSCalendarsWriteOnlyAccessUsageDescription" = "We add the event from a QR code to Calendar only when you ask.";

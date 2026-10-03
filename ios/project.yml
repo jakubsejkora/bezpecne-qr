@@ -15,10 +15,19 @@ configFiles:
   Debug: Config/Debug.xcconfig
   Release: Config/Release.xcconfig
 
+# Local Swift packages (each also builds and tests on its own).
+packages:
+  BQCore:
+    path: Packages/BQCore
+  BQServices:
+    path: Packages/BQServices
+  BQUI:
+    path: Packages/BQUI
+
 settings:
   base:
     # scripts/bump-version.sh keeps MARKETING_VERSION in sync with /VERSION.
-    MARKETING_VERSION: "0.0.2"
+    MARKETING_VERSION: "0.0.3"
     # scripts/testflight.sh passes the real build number from ios/BUILD_NUMBER.
     CURRENT_PROJECT_VERSION: 1
 
@@ -49,9 +58,31 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         # Only OS-provided TLS and signature verification are used.
         ITSAppUsesNonExemptEncryption: false
+        # Czech base texts; translations in Resources/*.lproj/InfoPlist.strings.
+        NSCameraUsageDescription: Kameru používáme jen ke čtení QR kódů. Fotky neukládáme.
+        NSPhotoLibraryAddUsageDescription: Platební QR kód uložíme do Fotek, aby ho šlo načíst v bankovní aplikaci.
+        NSContactsUsageDescription: Kontakt z QR kódu uložíme do Kontaktů, jen když o to požádáte.
+        NSCalendarsWriteOnlyAccessUsageDescription: Událost z QR kódu přidáme do Kalendáře, jen když o to požádáte.
     dependencies:
       - target: ShareExtension
         embed: true
+      - package: BQCore
+      - package: BQServices
+      - package: BQUI
+    postBuildScripts:
+      # The Debug menu replays the test corpus (the Simulator has no camera). Release builds never contain it.
+      - name: Embed test corpus (Debug only)
+        basedOnDependencyAnalysis: false
+        inputFiles:
+          - $(SRCROOT)/../shared/testdata/samples.json
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/samples.json
+        script: |
+          if [ "$CONFIGURATION" = "Debug" ]; then
+            cp "$SRCROOT/../shared/testdata/samples.json" "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/samples.json"
+          else
+            rm -f "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/samples.json"
+          fi
 
   ShareExtension:
     type: app-extension

@@ -1,0 +1,5 @@
+/* Usage descriptions shown by iOS when the app first asks for access. */
+"NSCameraUsageDescription" = "Kameru používáme jen ke čtení QR kódů. Fotky neukládáme.";
+"NSPhotoLibraryAddUsageDescription" = "Platební QR kód uložíme do Fotek, aby ho šlo načíst v bankovní aplikaci.";
+"NSContactsUsageDescription" = "Kontakt z QR kódu uložíme do Kontaktů, jen když o to požádáte.";
+"NSCalendarsWriteOnlyAccessUsageDescription" = "Událost z QR kódu přidáme do Kalendáře, jen když o to požádáte.";

@@ -7,6 +7,10 @@
 # Xcode / iOS
 build/
 DerivedData/
+# Swift Package Manager (ios/Packages/*)
+.build/
+.swiftpm/
+Package.resolved
 *.xcuserstate
 xcuserdata/
 *.xcarchive

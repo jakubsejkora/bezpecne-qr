@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "retrieved": "2026-09-29",
+  "note": "Country codes seen in 'missed call' (wangiri) warnings for Czech users. Weak evidence only (phone.foreign_prefix, 0.1); the main output is the csq.international_call consequence.",
+  "sources": [
+    "ČTÚ warning: https://ctu.gov.cz/varovani-pred-podvodnymi-telefonaty-0",
+    "Novinky: https://www.novinky.cz/internet-a-pc/bezpecnost/clanek/pozor-na-podvodne-prozvaneni-varuje-telekomunikacni-urad-40368790",
+    "Vodafone current threats: https://www.vodafone.cz/pece/muj-ucet-cislo/bezpecnost/aktualni-hrozby/"
+  ],
+  "prefixes": [
+    { "cc": "+94", "cs": "Srí Lanka", "en": "Sri Lanka" },
+    { "cc": "+211", "cs": "Jižní Súdán", "en": "South Sudan" },
+    { "cc": "+216", "cs": "Tunisko", "en": "Tunisia" },
+    { "cc": "+225", "cs": "Pobřeží slonoviny", "en": "Côte d'Ivoire" },
+    { "cc": "+247", "cs": "Ascension", "en": "Ascension Island" },
+    { "cc": "+251", "cs": "Etiopie", "en": "Ethiopia" },
+    { "cc": "+265", "cs": "Malawi", "en": "Malawi" },
+    { "cc": "+678", "cs": "Vanuatu", "en": "Vanuatu" }
+  ]
+}

@@ -38,9 +38,14 @@ echo "▸ Generating the Xcode project"
 mint run xcodegen generate > /dev/null
 
 for pkg in Packages/*/; do
-  if [ -f "$pkg/Package.swift" ]; then
+  [ -f "$pkg/Package.swift" ] || continue
+  if grep -q "\.macOS(" "$pkg/Package.swift"; then
     echo "▸ swift test — $pkg"
-    (cd "$pkg" && swift test)
+    (cd "$pkg" && swift test > /dev/null) || { echo "✗ Tests failed in $pkg (run swift test there)" >&2; exit 1; }
+  else
+    echo "▸ build (iOS Simulator) — $pkg"
+    (cd "$pkg" && xcodebuild build -scheme "$(basename "$pkg")" -destination 'generic/platform=iOS Simulator' -quiet > /dev/null) \
+      || { echo "✗ Build failed in $pkg" >&2; exit 1; }
   fi
 done
 

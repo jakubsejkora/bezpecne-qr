@@ -6,9 +6,9 @@ Each milestone ships as a pull request with a +0.0.1 version bump and a CHANGELO
 |---|---|---|
 | M0 | Repository bootstrap: README with call for partners, AGPL + commercial licence, CLA, contributing guide, privacy draft | ✅ 0.0.1 |
 | M1 | Interactive HTML prototype of every screen, shared rules and test corpus. **We iterate on it until the design is signed off**, including the choice between mascot and icons | ✅ 0.0.1 → iterating |
-| M2 | `BQCore` Swift package: classifier, sensitivity gate, parsers (SPD/SID/EPC/Swiss/crypto/Wi‑Fi/vCard/…), validators, per-type risk engines, rules loader. `swift test` must pass on the whole corpus | next |
-| M3 | iOS app shell and the first signed **TestFlight** upload (details below) | project skeleton, signing and first upload ✅ 0.0.2 |
-| M4 | Network inspection (details below) | |
+| M2 | `BQCore` Swift package: classifier, sensitivity gate, parsers (SPD/SID/EPC/Swiss/crypto/Wi‑Fi/vCard/…), validators, per-type risk engines, rules loader. `swift test` must pass on the whole corpus | ✅ 0.0.3 |
+| M3 | iOS app shell and the first signed **TestFlight** upload (details below) | ✅ 0.0.2 (skeleton, upload) + 0.0.3 (app) |
+| M4 | Network inspection (details below) | ✅ 0.0.3, except the OCR check |
 | M5 | Share extension (images), onboarding, CZ/EN strings, operator guide, recovery help, accessibility pass, final visual polish | |
 | M6 | V1 app candidate on TestFlight (internal testing) | |
 | M7 | Opt-in Cloudflare backend. Real uploads start only after our own DPIA/LIA are complete; the signed community feed comes later | |

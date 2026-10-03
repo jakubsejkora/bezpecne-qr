@@ -8,6 +8,28 @@ All notable changes to Bezpečné QR are documented here.
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-10-03
+
+### Added
+- **The scanner works.** The TestFlight build is now the real app instead of the placeholder:
+  - live camera scanning of QR, Micro QR, Aztec, DataMatrix and PDF417 (freeze, outline, haptic), codes from Photos, and a chooser when several codes are in view;
+  - the scan → "Kontroluji…" → verdict flow with the native result sheet (verdict, risk score, type card, reasons, consequences, checks, actions, check details), page extract ("Výtah ze stránky") and hold-to-confirm for risky actions;
+  - actions: in-app Safari, copy (passwords expire from the clipboard), call, prepared SMS, e-mail, add contact, add event, join Wi‑Fi, open in Maps, save a payment QR to Photos, hand 2FA codes to the system;
+  - local history in Settings (sensitive codes stored as a redacted summary only), settings for history and both internet checks, the operator-protection and "Už jsem zadal(a) údaje" guides, About, a short onboarding;
+  - a Debug-only menu (and launch arguments) that replays the test corpus in the Simulator.
+- **`BQCore`** (Swift package): classifier and parsers for every code type in the corpus, banking validators, the link eligibility gate, the risk engine ported from `scripts/lib/engine.mjs`, bundled rules. `swift test` replays all 80 corpus samples (type, fields, evidence, consequences, completeness, band) plus false-positive guards for legitimate Czech sites.
+- **`BQServices`** (Swift package): `SafeFetcher` (HTTPS-only GET bound to vetted public IPs, strict HTTP/1.1 parser, bounded gzip/deflate/brotli decoding), the redirect walk that re-runs the gate on every hop and stops before operator/carrier-billing hosts, Quad9 DoH, RDAP domain age and the page analyzer (asks, recurring offers, brand claims).
+- **`BQUI`** (Swift package): the result experience ported from the prototype (all type cards, light/dark, Dynamic Type up to AX5, VoiceOver), UI strings generated from `prototype/js/i18n.js` by `scripts/gen-ui-strings.mjs`, snapshot tests for every sample.
+- `scripts/sync-core-resources.sh` copies `shared/rules` and `shared/content` into BQCore (a test fails when they differ).
+
+### Changed
+- Corpus corrections found by the native engine: two missing "young domain" signals, a missing "false official" signal and a lost accent in a bitcoin label.
+- Rules: legacy official government domains for the gov brand, free-hosting provider names, a word boundary in the subscription interval pattern, new `inc.*` reasons for the link checker.
+- Risk engine details are documented in `docs/risk-engine.md` (implementation notes).
+
+### Security
+- An independent review of the link checker (Codex) found 16 issues — e.g. trailing-dot hosts bypassing the billing stop, tokens hidden in nested URLs, network-specific NAT64 and special-purpose IPv6 ranges, unvetted RDAP redirects, multi-member gzip. All were fixed before release; operator sites are now never contacted, not even as the scanned link.
+
 ## [0.0.2] - 2026-10-02
 
 ### Added

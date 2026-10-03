@@ -3,7 +3,7 @@
 **Bezplatná aplikace, která u každého QR kódu vysvětlí, co dělá — dřív, než cokoli otevřete.**
 iOS jako první, Android později. · 🇬🇧 [English version below](#-english)
 
-Verze **0.0.2** · [Co je nového](CHANGELOG.md) · [Prototyp](prototype/) · Licence [AGPL-3.0](LICENSE) + [komerční licence](COMMERCIAL.md)
+Verze **0.0.3** · [Co je nového](CHANGELOG.md) · [Prototyp](prototype/) · Licence [AGPL-3.0](LICENSE) + [komerční licence](COMMERCIAL.md)
 
 ---
 
@@ -35,9 +35,9 @@ Zatím je hotové:
 - interaktivní HTML prototyp všech obrazovek ([`prototype/`](prototype/));
 - sdílená pravidla ([`shared/rules/`](shared/rules/));
 - testovací korpus s 80 vzorky ([`shared/testdata/`](shared/testdata/));
-- kostra iOS aplikace s podepisováním a skriptem pro TestFlight ([`ios/`](ios/)) — zatím bez skeneru.
+- **funkční iOS aplikace** ([`ios/`](ios/), testovací verze přes TestFlight): skenování kamerou i z Fotek, všechny typy kódů, kontrola odkazu (přesměrování, co stránka chce, Quad9 a stáří domény), skóre rizika s důvody, karty a akce podle typu, historie a nastavení.
 
-Další krok je samotná iOS aplikace: SwiftUI, iOS 18+, Liquid Glass na iOS 26+, distribuce přes TestFlight. Plán je v [`docs/roadmap.md`](docs/roadmap.md).
+Další kroky: rozšíření pro sdílení obrázků, kontrola textu vytištěného vedle kódu a ladění podle testování. Plán je v [`docs/roadmap.md`](docs/roadmap.md).
 
 ## 🤝 Hledáme partnery
 
@@ -65,7 +65,7 @@ Otevřete [`prototype/index.html`](prototype/index.html) v prohlížeči (funguj
 | `shared/testdata/` | Testovací korpus: kód → očekávaný typ, pole, pásmo a signály |
 | `shared/content/` | Návody (ochrana u operátora, „Už jsem zadal údaje“) |
 | `prototype/` | Interaktivní HTML prototyp |
-| `ios/` | iOS aplikace (zatím kostra); sestavení popisuje [`ios/README.md`](ios/README.md) |
+| `ios/` | iOS aplikace a balíčky BQCore (analýza), BQServices (kontrola odkazu) a BQUI (obrazovky); sestavení popisuje [`ios/README.md`](ios/README.md) |
 | `scripts/` | Generátory dat, referenční výpočet skóre, zvýšení verze, odeslání do TestFlightu |
 | `docs/` | Architektura, výpočet rizika, soukromí, plán |
 
@@ -115,9 +115,9 @@ Done so far:
 - an interactive HTML prototype of every screen;
 - shared JSON rules;
 - an 80-sample test corpus;
-- the iOS project skeleton with signing and a TestFlight script ([`ios/`](ios/)), with no scanner yet.
+- **a working iOS app** ([`ios/`](ios/), on TestFlight for testers): camera and photo scanning, every code type, the link check (redirects, what the page asks for, Quad9 and domain age), the risk score with reasons, type cards and actions, history and settings.
 
-The native iOS app itself (SwiftUI, iOS 18+, Liquid Glass on iOS 26+) comes next. See [`docs/roadmap.md`](docs/roadmap.md).
+Next: the image share extension, the printed-text-vs-QR check and tuning from testing. See [`docs/roadmap.md`](docs/roadmap.md).
 
 ### License
 - The code is licensed under **AGPL-3.0**.

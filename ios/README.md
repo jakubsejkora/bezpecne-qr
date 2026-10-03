@@ -1,7 +1,7 @@
 # Bezpečné QR — iOS
 
 SwiftUI app for iOS 18.0+ (Liquid Glass on iOS 26+, material fallback on iOS 18) with a share extension.
-At version 0.0.2 this is a **skeleton**: a placeholder screen and a stub extension that prove the project, signing and TestFlight pipeline. The scanner arrives in later versions (see [`docs/roadmap.md`](../docs/roadmap.md)).
+Since 0.0.3 it is a working scanner: camera and photo scanning, every code type from the prototype, the link check (observed redirects, page extract, Quad9 and domain age), the risk score with reasons, the type cards and actions, local history and settings. The share extension is still a stub (see [`docs/roadmap.md`](../docs/roadmap.md)).
 
 ## Requirements
 
@@ -14,8 +14,11 @@ At version 0.0.2 this is a **skeleton**: a placeholder screen and a stub extensi
 |---|---|
 | `project.yml` | XcodeGen spec — the single definition of the Xcode project |
 | `Config/` | Build settings (`Shared.xcconfig` holds the team, deployment target and Swift settings) |
-| `BezpecneQR/` | App target: sources, assets, entitlements, privacy manifest |
-| `ShareExtension/` | Share extension target (images) |
+| `BezpecneQR/` | App target: scanner (camera, photos), scan flow, system actions, history, settings, onboarding |
+| `ShareExtension/` | Share extension target (images; still a stub) |
+| `Packages/BQCore` | Pure Swift: classifier, parsers, validators, link eligibility gate, risk engine, bundled rules. `swift test` replays the whole corpus |
+| `Packages/BQServices` | Network inspection: `SafeFetcher` (HTTPS GET bound to vetted public IPs), Quad9 DoH, RDAP, page extract, `LinkInspector` |
+| `Packages/BQUI` | Result sheet, type cards, page extract, chooser, design tokens and UI strings (generated from the prototype) |
 | `ExportOptions.plist` | Export settings for App Store Connect uploads |
 | `BUILD_NUMBER` | Last build number reserved by `scripts/testflight.sh` |
 
@@ -30,6 +33,10 @@ open BezpecneQR.xcodeproj        # or build from the command line:
 xcodebuild -project BezpecneQR.xcodeproj -scheme BezpecneQR \
   -destination 'platform=iOS Simulator,name=iPhone 17' build
 ```
+
+The Simulator has no camera: in Debug builds, Settings → Vývojářské nástroje replays any corpus sample (with its recorded inspection, or a live network check). The corpus is copied into Debug builds only.
+
+Tests: `swift test` in `Packages/BQCore` and `Packages/BQServices` (live network tests run with `BQ_LIVE_TESTS=1`); BQUI snapshot tests with `xcodebuild test -scheme BQUI -destination 'platform=iOS Simulator,name=iPhone 17'` in its folder. After editing `shared/rules` or `shared/content`, run `scripts/sync-core-resources.sh`; after editing `prototype/js/i18n.js`, run `node scripts/gen-ui-strings.mjs`.
 
 Simulator builds need no signing. Device builds use automatic signing with the team in `Config/Shared.xcconfig`; outside that team, change the team and the bundle identifiers locally and don't commit them.
 
@@ -46,7 +53,7 @@ scripts/testflight.sh --ipa-only      # archive + export a distribution-signed .
 scripts/testflight.sh --archive-only  # sign and archive only
 ```
 
-The script reserves the next number in `BUILD_NUMBER`, regenerates the project, runs `swift test` for every package in `Packages/`, archives the Release configuration and exports with `ExportOptions.plist`. Archives, the exported `.ipa` and logs are kept in `artifacts/<version>-<build>/` (not committed). Commit the changed `BUILD_NUMBER`.
+The script reserves the next number in `BUILD_NUMBER`, regenerates the project, runs `swift test` for the packages that support macOS and builds the iOS-only ones, archives the Release configuration and exports with `ExportOptions.plist`. Archives, the exported `.ipa` and logs are kept in `artifacts/<version>-<build>/` (not committed). Commit the changed `BUILD_NUMBER`.
 
 ## One-time setup
 
