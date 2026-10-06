@@ -87,6 +87,7 @@ final class ActionHandler: NSObject, ResultActionHandler {
             configuration.entersReaderIfAvailable = false
             let safari = SFSafariViewController(url: url, configuration: configuration)
             safari.dismissButtonStyle = .close
+            safari.modalPresentationCapturesStatusBarAppearance = true
             top.present(safari, animated: true)
             return .done(toast: nil)
         }
@@ -121,6 +122,7 @@ final class ActionHandler: NSObject, ResultActionHandler {
         composer.recipients = [number]
         composer.body = body
         composer.messageComposeDelegate = self
+        composer.modalPresentationCapturesStatusBarAppearance = true
         return await withCheckedContinuation { continuation in
             completion = continuation
             top.present(composer, animated: true)
@@ -149,6 +151,7 @@ final class ActionHandler: NSObject, ResultActionHandler {
         let controller = CNContactViewController(forNewContact: contact)
         controller.delegate = self
         let navigation = UINavigationController(rootViewController: controller)
+        navigation.modalPresentationCapturesStatusBarAppearance = true
         return await withCheckedContinuation { continuation in
             completion = continuation
             top.present(navigation, animated: true)
@@ -173,6 +176,7 @@ final class ActionHandler: NSObject, ResultActionHandler {
         controller.eventStore = store
         controller.event = event
         controller.editViewDelegate = self
+        controller.modalPresentationCapturesStatusBarAppearance = true
         return await withCheckedContinuation { continuation in
             completion = continuation
             top.present(controller, animated: true)

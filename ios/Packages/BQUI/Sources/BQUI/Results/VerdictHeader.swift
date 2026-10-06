@@ -4,48 +4,31 @@ import SwiftUI
 /// The compact verdict (`.verdict`): animated badge, kicker, band title, one-line reason, chip.
 struct VerdictHeader: View {
     var verdict: Verdict
-    @Environment(\.dynamicTypeSize) private var typeSize
-
+    @Environment(\.bqDesign) private var design
     var body: some View {
-        let layout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: 14))
-        layout {
-            VerdictBadge(verdict: verdict)
-            VStack(alignment: .leading, spacing: 0) {
-                if let kicker = verdict.kicker {
-                    Text(kicker)
-                        .textCase(.uppercase)
-                        .bqFont(12.5, .bold, relativeTo: .caption)
-                        .tracking(0.5)
-                        .foregroundStyle(verdict.tone.color)
-                        .padding(.bottom, 3)
-                }
-                Text(verdict.title)
-                    .bqFont(26, .bold, relativeTo: .title)
-                    .tracking(-0.2)
-                    .foregroundStyle(verdict.tone == .danger ? Tone.danger.chipText : BQColor.label)
+        VStack(alignment: .leading, spacing: design == .precision ? 8 : 12) {
+            HStack(spacing: 8) {
+                Image(systemName: verdict.icon).font(.system(size: design == .softContrast ? 28 : 17, weight: .semibold)).accessibilityHidden(true)
+                if let kicker = verdict.kicker { Text(kicker).font(.caption.weight(.semibold)).textCase(.uppercase).tracking(0.8) }
+                Spacer(minLength: 0)
+            }.foregroundStyle(verdict.tone.strong)
+            Text(verdict.title)
+                .bqFont(design == .signal ? 34 : design == .precision ? 25 : 30, design.headingWeight, relativeTo: .title)
+                .tracking(-0.6).fixedSize(horizontal: false, vertical: true)
+                .foregroundStyle(design == .signal ? verdict.tone.strong : design.ink)
+            if let subtitle = verdict.subtitle {
+                Text(subtitle).bqFont(16, relativeTo: .body).foregroundStyle(BQColor.label2)
                     .fixedSize(horizontal: false, vertical: true)
-                if let subtitle = verdict.subtitle {
-                    Text(subtitle)
-                        .bqFont(15.5, relativeTo: .subheadline)
-                        .foregroundStyle(BQColor.label2)
-                        .lineSpacing(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 5)
-                }
-                if let chip = verdict.chip {
-                    Chip(text: chip.text, icon: chip.tone == .safe ? Symbol.check : Symbol.caution, tone: chip.tone)
-                        .padding(.top, 8)
-                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            if let chip = verdict.chip { Chip(text: chip.text, icon: nil, tone: chip.tone) }
+            if design == .precision { Divider().padding(.top, 4) }
         }
-        .padding(.top, 6)
-        .padding(.bottom, 12)
-        .padding(.horizontal, 2)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isHeader)
+        .padding(design == .signal || design == .softContrast ? 18 : 0)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(design == .signal ? verdict.tone.background : design == .softContrast ? design.surface : .clear,
+                    in: RoundedRectangle(cornerRadius: design.radius))
+        .padding(.top, 8).padding(.bottom, 20)
+        .accessibilityElement(children: .combine).accessibilityAddTraits(.isHeader)
     }
 }
 
@@ -200,18 +183,11 @@ private struct MeterTrack: View {
     var score: Int
     var muted: Bool
 
-    private static let gradient = LinearGradient(stops: [
-        .init(color: BQColor.hex(0x34C759), location: 0),
-        .init(color: BQColor.hex(0x34C759), location: 0.22),
-        .init(color: BQColor.hex(0xFFCC00), location: 0.30),
-        .init(color: BQColor.hex(0xFF9F0A), location: 0.52),
-        .init(color: BQColor.hex(0xFF453A), location: 0.64),
-        .init(color: BQColor.hex(0xD70015), location: 1),
-    ], startPoint: .leading, endPoint: .trailing)
+
 
     var body: some View {
         Capsule()
-            .fill(Self.gradient)
+            .fill(SignalPalette.gradient)
             .frame(height: 10)
             .grayscale(muted ? 1 : 0)
             .opacity(muted ? 0.45 : 1)

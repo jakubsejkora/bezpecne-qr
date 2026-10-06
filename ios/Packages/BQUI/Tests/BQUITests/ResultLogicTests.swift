@@ -24,7 +24,7 @@ struct ResultLogicTests {
     }
 
     @Test func informationalChips() {
-        #expect(parts("wifi-wpa2").2.chip == Verdict.VerdictChip(tone: .safe, text: "Bez varovných znaků"))
+        #expect(parts("wifi-wpa2").2.chip == Verdict.VerdictChip(tone: .info, text: "Bez varovných znaků"))
         #expect(parts("wifi-open").2.chip?.tone == .caution)
     }
 
@@ -69,8 +69,25 @@ struct ResultLogicTests {
         }
     }
 
+    @Test("Extension actions stay within host capabilities", arguments: Corpus.ids)
+    func extensionCapabilities(_ id: String) {
+        let a = Corpus.analysis(id), texts = FindingTexts(Corpus.analysis(id), .en)
+        let plan = ActionPlan(a, verdict: Verdict(a, texts, .en), texts: texts, lang: .en, contactSaved: false, capabilities: .imageExtension)
+        for item in plan.items {
+            let buttons: [ActionPlan.Button] = switch item { case .button(let b): [b]; case .row(let row): row; default: [] }
+            for button in buttons {
+                if case .perform(let action) = button.behavior { #expect(ResultCapabilities.imageExtension.supports(action)) }
+            }
+            if case .hold(let hold) = item { #expect(ResultCapabilities.imageExtension.supports(hold.action)) }
+        }
+        if a.isSensitive { #expect(!plan.items.contains { $0.id == "copy-link" }) }
+    }
+
     @Test func actionsMatchThePrototype() {
-        func ids(_ id: String) -> [String] { parts(id).3.items.map(\.id) }
+        func ids(_ id: String) -> [String] {
+            // The original-route notice adds context, not another action.
+            parts(id).3.items.filter { $0.id != "hint-" + L10n.t("destination.originalActionNote", .cs) }.map(\.id)
+        }
         #expect(ids("url-parking-fake") == ["back", "hold-open"])
         #expect(ids("url-menu-shortener") == ["open", "preview"])
         #expect(ids("url-parking-praha-official") == ["open", "preview"])
@@ -102,6 +119,24 @@ struct ResultLogicTests {
         #expect(ActionPlan.copyableAmount("480.5", .en) == "480.50")
         guard case .button(let pw) = parts("wifi-wpa2").3.items.last else { Issue.record("no password copy"); return }
         #expect(pw.behavior == .perform(.copy("kafe-2026", .password)))
+    }
+
+    @Test("Opening and copying distinguish the inspected destination from the original route")
+    func destinationActionLabels() throws {
+        let (resolved, _, _, resolvedPlan) = parts("url-menu-shortener")
+        let (unresolved, _, _, originalPlan) = parts("url-offline-menu")
+        guard case .button(let open) = resolvedPlan.items.first else { Issue.record("missing open action"); return }
+        #expect(open.title == L10n.t("act.openWeb", .cs))
+        #expect(open.behavior == .perform(.open(try #require(resolved.openURL))))
+        #expect(resolved.openURL?.host == resolved.resolvedHost)
+        #expect(originalPlan.items.contains(.hint(L10n.t("destination.originalActionNote", .cs))))
+        let buttons = originalPlan.items.compactMap { if case .button(let b) = $0 { return b }; return nil }
+        #expect(buttons.contains { $0.title == L10n.t("destination.openOriginalAnyway", .cs) && $0.behavior == .perform(.open(unresolved.openURL!)) })
+        let texts = FindingTexts(resolved, .cs)
+        let extensionPlan = ActionPlan(resolved, verdict: Verdict(resolved, texts, .cs), texts: texts, lang: .cs,
+                                       contactSaved: false, capabilities: .imageExtension)
+        #expect(extensionPlan.items.contains { $0.id == "copy-destination" })
+        #expect(extensionPlan.items.contains { $0.id == "copy-link" })
     }
 
     @Test func mailURLIsBuiltFromFields() throws {

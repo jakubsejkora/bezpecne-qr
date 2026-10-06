@@ -1,0 +1,3 @@
+#include "Release.xcconfig"
+// Internal TestFlight only. Never enable DEBUG in a signed review archive.
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) DESIGN_REVIEW

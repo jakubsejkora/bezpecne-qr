@@ -5,6 +5,7 @@ import SwiftUI
 // SF Pro everywhere; SF Pro Rounded (`ui-rounded`) for amounts, scores, phone numbers and initials.
 
 private struct ScaledFont: ViewModifier {
+    @Environment(\.bqDesign) private var direction
     @ScaledMetric private var size: CGFloat
     @Environment(\.legibilityWeight) private var legibility
     private let weight: Font.Weight
@@ -17,7 +18,7 @@ private struct ScaledFont: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        content.font(.system(size: size, weight: legibility == .bold ? Self.bolder(weight) : weight, design: design))
+        content.font(.system(size: size + (direction == .signal && size >= 24 ? 2 : 0), weight: legibility == .bold ? Self.bolder(weight) : weight, design: design == .monospaced ? .monospaced : direction == .softContrast ? .rounded : design))
     }
 
     /// Bold Text makes every weight one step heavier.

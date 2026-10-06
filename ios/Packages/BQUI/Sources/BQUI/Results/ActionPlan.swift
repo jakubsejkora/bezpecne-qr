@@ -55,7 +55,7 @@ struct ActionPlan {
 
     var items: [Item]
 
-    init(_ a: Analysis, verdict: Verdict, texts: FindingTexts, lang: Language, contactSaved: Bool) {
+    init(_ a: Analysis, verdict: Verdict, texts: FindingTexts, lang: Language, contactSaved: Bool, capabilities: ResultCapabilities = .app) {
         var out: [Item] = []
         let t = { (key: String) in lang.t(key) }
         let danger = a.band == .danger
@@ -98,6 +98,7 @@ struct ActionPlan {
 
         switch a.content {
         case .link, .store, .messenger:
+            if a.opensOriginalLink { out.append(.hint(t("destination.originalActionNote"))) }
             if a.type == .webcal {
                 out.append(back)
                 if let url = openURL { out.append(hold("subscribe", "act.subscribe", .subscribe, .open(url))) }
@@ -108,7 +109,7 @@ struct ActionPlan {
             switch a.content {
             case .store: openTitle = t("act.appStore")
             case .messenger(let m): openTitle = lang.t("act.openService", ["service": m.service])
-            default: openTitle = t("act.openWeb"); openIcon = "safari"
+            default: openTitle = t(a.opensOriginalLink ? "destination.openOriginal" : "act.openWeb"); openIcon = "safari"
             }
             guard let url = openURL else { out.append(back); break }
             let open = Behavior.perform(.open(url))
@@ -126,10 +127,10 @@ struct ActionPlan {
                 out.append(hold("open", "act.continueHold", .proceed, .open(url)))
             } else if caution {
                 out.append(hasPage ? button("preview", t("act.preview"), .primary, "eye", .pageExtract) : back)
-                out.append(button("open", t("act.openAnyway"), .secondary, nil, open))
+                out.append(button("open", t(a.opensOriginalLink ? "destination.openOriginalAnyway" : "act.openAnyway"), .secondary, nil, open))
             } else if a.band == .incomplete {
                 out.append(back)
-                out.append(button("open", t("act.openAnyway"), .secondary, nil, open))
+                out.append(button("open", t(a.opensOriginalLink ? "destination.openOriginalAnyway" : "act.openAnyway"), .secondary, nil, open))
             } else {
                 out.append(button("open", openTitle, .primary, openIcon, open))
                 if hasPage { out.append(button("preview", t("act.preview"), .secondary, "eye", .pageExtract)) }
@@ -226,6 +227,37 @@ struct ActionPlan {
         case .text, .emvco, .gs1, .boardingPass:
             out.append(button("copy-text", t("act.copyText"), .secondary, "doc.on.doc", .perform(.copy(a.code.text, .text))))
             out.append(button("close", t("act.close"), .primary, nil, .perform(.close)))
+        }
+        if capabilities == .imageExtension {
+            var filtered: [Item] = []
+            func allowed(_ b: Button) -> Bool {
+                if case .perform(let action) = b.behavior { return capabilities.supports(action) }
+                return true
+            }
+            for item in out {
+                switch item {
+                case .button(var b):
+                    if allowed(b) {
+                        if case .perform(.backToScanning) = b.behavior { b.title = t("act.close") }
+                        filtered.append(.button(b))
+                    }
+                case .row(let buttons):
+                    let kept = buttons.filter(allowed); if !kept.isEmpty { filtered.append(.row(kept)) }
+                case .hold(let h): if capabilities.supports(h.action) { filtered.append(item) }
+                case .hint: break
+                }
+            }
+            if !a.isSensitive, a.openURL != nil {
+                filtered.append(button("copy-link", t("destination.copyOriginal"), .secondary, "doc.on.doc", .perform(.copy(a.code.text, .text))))
+                if let target = a.linkResolution?.resolved {
+                    filtered.append(button("copy-destination", t("destination.copyResolved"), .secondary, "doc.on.doc", .perform(.copy(target.url, .text))))
+                }
+            }
+            filtered.append(.hint(t("share.continueApp")))
+            if !filtered.contains(where: { if case .button(let b) = $0, b.style == .primary { return true }; return false }) {
+                filtered.insert(button("close-extension", t("act.close"), .primary, nil, .perform(.close)), at: 0)
+            }
+            out = filtered
         }
         items = out
     }

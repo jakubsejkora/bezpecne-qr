@@ -4,7 +4,9 @@ The engine answers three separate questions about every scanned code:
 
 1. **Fraud evidence**: the *orientační skóre rizika* (indicative risk index) from 0 to 100.
 2. **Consequence**: what the code would do, for example start a recurring payment, forward your calls or link a device. This is never counted as fraud.
-3. **Inspection completeness**: complete / incomplete / skipped, and why.
+3. **Inspection completeness**: complete / incomplete / skipped / not needed, and why.
+
+Destination resolution is recorded separately: scanned address, last observed HTTP response, resolved endpoint or unresolved/app-handoff state. A blocked or unvisited redirect target is not a confirmed final page.
 
 An unavailable check never overrides danger that has already been established.
 
@@ -21,7 +23,7 @@ payload (string + raw bytes) → classifier → sensitivity gate → parser → 
   - the payload is never stored in history (a redacted summary only);
   - nothing goes into telemetry or reports;
   - camera frames are discarded.
-- **Evidence providers:** lexical URL analysis, bundled lists, payment and SMS/phone rules, OCR of printed text near the code, destination inspection, Quad9 protective DNS, RDAP domain age, and later a remote intel provider (backend/partner APIs).
+- **Implemented evidence providers:** lexical URL analysis, bundled lists, payment and SMS/phone rules, destination inspection, Quad9 protective DNS and RDAP domain age. Printed-text OCR comparison and remote intelligence remain deferred; OCR findings can be exercised with synthetic fixtures.
 
 ## Score
 
@@ -62,9 +64,12 @@ score = round(100 · sigmoid(baseline + Σ_groups min(cap, combine(weights))))
 - HTTPS only. For `http://` links the HTTPS variant is tried and cleartext is never fetched.
 - One streamed GET per hop, with no cookies and no JavaScript.
 - Every redirect hop is re-checked against all the rules above.
-- Budgets: 10 requests, 8 s, 512 KiB per page.
+- Budgets: 10 requests, eight seconds overall (domain checks included), three seconds per hop, 2 MiB decoded per page and 4 MiB decoded across the walk.
 - The walk **stops before any mobile-operator or carrier-billing host**, so your phone number isn't exposed.
 - The result is the **observed** redirect chain plus what the page asks for: prices and intervals, phone, OTP, card and password fields, claimed brands.
+- Redirects without a target, unsupported refreshes, detected script navigation, HTTP failures, loops, exhausted budgets and unresolved known shorteners produce incomplete outcomes. No JavaScript executes and no cookies are shared; browser-dependent destinations may remain unresolved. Page evidence already found is retained.
+- An ordinary web URL that resolves completely opens the inspected HTTPS endpoint directly. Sensitive, special-purpose, incomplete, app-handoff and fragment-dependent routes retain their existing action policy and original-route explanation. Existing risk confirmations still apply.
+- History stores the resolved hostname as its title after a successful check but keeps the scanned payload for an explicit recheck. Old history is never silently checked again.
 
 **The subscription-page detector** needs all three of these before it raises the score to 80 or more:
 - a recurring price (e.g. "99 Kč týdně");

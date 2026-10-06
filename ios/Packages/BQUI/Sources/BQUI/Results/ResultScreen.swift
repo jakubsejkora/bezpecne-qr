@@ -5,38 +5,46 @@ import SwiftUI
 /// consequences, actions and "Podrobnosti kontroly"; plus the page extract ("Výtah ze stránky"),
 /// toasts, the hold-to-confirm alternative and the close button. Present it as a full-height sheet.
 public struct ResultScreen: View {
+    public enum Layout { case full, summary, popup }
     @Bindable private var model: ResultModel
+    private var layout: Layout
+    private var onExpand: (() -> Void)?
+    private var onHeightChange: ((CGFloat) -> Void)?
     @Environment(\.bqSnapshot) private var snapshot
+    @Environment(\.bqDesign) private var design
+    @Environment(\.bqSignalPreset) private var preset
+    @Environment(\.dynamicTypeSize) private var textSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var checkingVisible = false
     /// Bumped once per new verdict: drives the success / warning / error haptic.
     @State private var verdictPulse = 0
 
-    public init(model: ResultModel) {
+    public init(model: ResultModel, layout: Layout = .full, onExpand: (() -> Void)? = nil,
+                onHeightChange: ((CGFloat) -> Void)? = nil) {
         self.model = model
+        self.layout = layout; self.onExpand = onExpand; self.onHeightChange = onHeightChange
     }
+    private var fitting: Bool { layout == .popup && !model.resultExpanded }
+    private func measure(_ height: CGFloat) { onHeightChange?(height + 60) }
+    private func expand() { model.resultExpanded = true; onExpand?() }
 
     public var body: some View {
         let lang = model.language
         let analysis = model.analysis
-        let showChecking = model.isChecking && analysis.band != .danger
+        let showChecking = model.isChecking && analysis.band != .danger && model.capabilities != .imageExtension
         let verdictKey: String? = showChecking ? nil : "\(analysis.code.text.hashValue)-\(analysis.band.rawValue)"
 
         ZStack(alignment: .bottom) {
             Group {
                 if showChecking {
-                    SheetPage(close: { model.perform(.close) }) {
+                    SheetPage(back: model.onShowAllCodes, backLabel: model.onShowAllCodes == nil ? nil : lang.t("choose.all"), close: { model.perform(.close) }, fitContent: fitting, onHeightChange: measure) {
+                        if layout == .full && !analysis.isSensitive { CaptureHeader() }
                         CheckingView(model: model)
                             .opacity(checkingVisible || snapshot ? 1 : 0)
                     }
                     .transition(.opacity)
-                } else if model.route == .pageExtract {
-                    SheetPage(title: lang.t("prev.title"), back: { model.route = .result }, close: { model.perform(.close) }) {
-                        PageExtractView(model: model)
-                    }
-                    .transition(reduceMotion ? .opacity : .move(edge: .trailing).combined(with: .opacity))
                 } else {
-                    SheetPage(close: { model.perform(.close) }) {
+                    SheetPage(back: model.onShowAllCodes, backLabel: model.onShowAllCodes == nil ? nil : lang.t("choose.all"), close: { model.perform(.close) }, fitContent: fitting, onHeightChange: measure) {
                         ResultContent(model: model)
                     }
                     .transition(.opacity)
@@ -50,13 +58,17 @@ public struct ResultScreen: View {
                     .zIndex(2)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: snapshot ? nil : .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: snapshot || fitting ? nil : .infinity, alignment: .top)
         .overlay {
             ConfettiView(trigger: model.celebration)
         }
-        .background(BQColor.background.ignoresSafeArea())
-        .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
+        .backgroundPreferenceValue(FadeHeaderHeightKey.self) { headerHeight in
+            if design == .signal && preset == .fade && !showChecking {
+                let summary = ResultSummary(analysis, texts: FindingTexts(analysis, lang), language: lang, checking: model.isChecking)
+                ResultFadeBackdrop(base: summary.surface.start, headerHeight: headerHeight)
+            }
+        }
+        .background(design.background.ignoresSafeArea())
         .environment(\.bqLanguage, lang)
         .animation(reduceMotion ? .easeInOut(duration: 0.2) : .smooth(duration: 0.35), value: showChecking)
         .animation(reduceMotion ? .easeInOut(duration: 0.2) : .smooth(duration: 0.35), value: model.route)
@@ -85,26 +97,23 @@ public struct ResultScreen: View {
             guard !Task.isCancelled, model.toast?.id == toast.id else { return }
             model.toast = nil
         }
-        .onChange(of: verdictKey, initial: true) { _, key in
-            announce(key)
-        }
+        .task(id: verdictKey) { await announce(verdictKey) }
         .sensoryFeedback(trigger: verdictPulse) { _, _ in
             Self.feedback(for: model.analysis, lang)
         }
     }
 
     /// VoiceOver hears the verdict once, e.g. "Riziko 72 ze 100, nebezpečné"; the haptic plays once.
-    private func announce(_ key: String?) {
+    private func announce(_ key: String?) async {
         guard let key, model.announcedVerdict != key, !snapshot else { return }
         model.announcedVerdict = key
         verdictPulse += 1
         let analysis = model.analysis
         let lang = model.language
         let text = Verdict(analysis, FindingTexts(analysis, lang), lang).announcement(analysis, lang)
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(700))
-            AccessibilityNotification.Announcement(text).post()
-        }
+        try? await Task.sleep(for: .milliseconds(700))
+        guard !Task.isCancelled, model.announcedVerdict == key else { return }
+        AccessibilityNotification.Announcement(text).post()
     }
 
     private static func feedback(for analysis: Analysis, _ lang: Language) -> SensoryFeedback? {
@@ -123,16 +132,20 @@ public struct ResultScreen: View {
 struct SheetPage<Content: View>: View {
     var title: String?
     var back: (() -> Void)?
+    var backLabel: String? = nil
     var close: (() -> Void)?
+    var fitContent = false
+    var onHeightChange: ((CGFloat) -> Void)? = nil
     @ViewBuilder var content: Content
     @Environment(\.bqSnapshot) private var snapshot
+    @Environment(\.bqDesign) private var design
 
     var body: some View {
-        if snapshot {
+        if snapshot || fitContent {
             // A scroll view proposes an unlimited height; ImageRenderer would propose the exact
             // measured height instead, so the snapshot fixes the content at its ideal height.
             VStack(spacing: 0) {
-                SheetChrome(title: title, back: back, close: close)
+                SheetChrome(title: title, back: back, backLabel: backLabel, close: close)
                 padded
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -141,16 +154,17 @@ struct SheetPage<Content: View>: View {
                 padded
             }
             .scrollBounceBehavior(.basedOnSize)
-            .modifier(TopBar { SheetChrome(title: title, back: back, close: close) })
+            .modifier(TopBar { SheetChrome(title: title, back: back, backLabel: backLabel, close: close) })
         }
     }
 
     private var padded: some View {
         content
-            .padding(.horizontal, Metrics.screenPadding)
+            .padding(.horizontal, design.padding)
             .padding(.top, 2)
-            .padding(.bottom, 34)
+            .padding(.bottom, fitContent ? 8 : 24)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { onHeightChange?($0) }
     }
 }
 
@@ -173,22 +187,25 @@ private struct TopBar<Bar: View>: ViewModifier {
 struct ResultContent: View {
     var model: ResultModel
     @Environment(\.bqLanguage) private var lang
+    @Environment(\.bqDesign) private var design
 
-    var body: some View {
+    @ViewBuilder var body: some View {
+        if design == .signal { SignalResultContent(model: model) }
+        else { comparisonContent }
+    }
+    @ViewBuilder private var comparisonContent: some View {
         let a = model.analysis
         let texts = FindingTexts(a, lang)
         let verdict = Verdict(a, texts, lang)
-        let plan = ActionPlan(a, verdict: verdict, texts: texts, lang: lang, contactSaved: model.contactSaved)
+        let plan = ActionPlan(a, verdict: verdict, texts: texts, lang: lang, contactSaved: model.contactSaved, capabilities: model.capabilities)
         let showTopReasons = !texts.reasons.isEmpty && a.band != .safe && a.band != .info
         let topCount = showTopReasons ? min(2, texts.reasons.count) : 0
 
         VStack(alignment: .leading, spacing: 0) {
+            if !a.isSensitive { CaptureHeader(showImage: model.capabilities == .imageExtension) }
             VerdictHeader(verdict: verdict)
             if model.isChecking {
                 InlineChecking(model: model)
-            }
-            if a.assessment.scored, !a.decodeOnly, let score = a.assessment.score {
-                RiskMeter(score: score, muted: a.band == .incomplete, fraudLabel: verdict.isAlert)
             }
             if Self.showsStickerTip(a, fromCamera: model.fromCamera) {
                 Notice(icon: Symbol.sticker, tone: .caution) {
@@ -198,6 +215,7 @@ struct ResultContent: View {
             }
             TypeCard(analysis: a, model: model)
             CompletenessNotice(analysis: a) { model.perform(.manualCheck) }
+            ActionsView(items: plan.items.filter { model.capabilities == .imageExtension || !$0.isDismissal }, model: model)
             if showTopReasons {
                 SectionTitle(text: lang.t("sec.why"))
                 ReasonList(reasons: Array(texts.reasons.prefix(topCount)))
@@ -207,6 +225,12 @@ struct ResultContent: View {
             if !texts.consequences.isEmpty {
                 SectionTitle(text: lang.t("sec.consequence"))
                 ForEach(texts.consequences) { ConsequenceBox(consequence: $0) }
+            }
+            if a.assessment.scored, !a.decodeOnly, let score = a.assessment.score {
+                CompactRiskMeter(score: score, muted: a.band == .incomplete)
+            }
+            if a.band == .danger, let help = model.onRecoveryHelp {
+                Button(lang.t("set.recovery"), action: help).buttonStyle(BQButtonStyle(kind: .plain))
             }
             if (a.band == .safe || a.band == .info), !texts.checks.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
@@ -219,7 +243,6 @@ struct ResultContent: View {
                 .background(BQColor.card, in: .card(Metrics.cardRadius))
                 .blockGap()
             }
-            ActionsView(plan: plan, model: model)
             DetailsSection(model: model, texts: texts, shownReasons: topCount)
                 .padding(.top, 2)
         }
@@ -242,6 +265,7 @@ struct DetailsSection: View {
     var texts: FindingTexts
     var shownReasons: Int
     @Environment(\.bqLanguage) private var lang
+    @Environment(\.bqDesign) private var design
 
     var body: some View {
         let a = model.analysis
@@ -249,8 +273,23 @@ struct DetailsSection: View {
         Disclosure(title: lang.t("sec.details"), isExpanded: Binding(
             get: { model.detailsExpanded }, set: { model.detailsExpanded = $0 })) {
             VStack(alignment: .leading, spacing: 0) {
+                if design == .signal {
+                    if a.assessment.scored, !a.decodeOnly {
+                        Text(lang.t("meter.note")).font(.footnote).foregroundStyle(BQColor.label2).padding(.vertical, 10)
+                    }
+                    if ResultContent.showsStickerTip(a, fromCamera: model.fromCamera) {
+                        Notice(icon: Symbol.sticker, tone: .caution) { Text(lang.t("scan.stickerTip")) }.blockGap()
+                    }
+                    if !texts.consequences.isEmpty {
+                        SubHeading(text: lang.t("sec.consequence"), top: 0)
+                        ForEach(texts.consequences) { ConsequenceBox(consequence: $0) }
+                    }
+                }
+                if case .link = a.content {
+                    if let title = a.inspection?.page?.title { Claim(caption: lang.t("url.claim"), text: lang.quoted(title)) }
+                }
                 if !more.isEmpty {
-                    SubHeading(text: lang.t("sec.more"), top: 0)
+                    SubHeading(text: lang.t(design == .signal ? "sec.why" : "sec.more"), top: 0)
                     ReasonList(reasons: more)
                         .padding(.top, 6)
                         .padding(.bottom, 4)

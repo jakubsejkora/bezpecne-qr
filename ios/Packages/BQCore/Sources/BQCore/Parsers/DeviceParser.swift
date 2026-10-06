@@ -239,6 +239,15 @@ struct DeviceParser {
                 links.append(value.lowercased().hasPrefix("www.") ? "https://" + value : value)
             }
         }
+        // Bare domains inside prose are links too. Recognize without executing or fetching them.
+        if let re = try? NSRegularExpression(pattern: #"(?i)(?<![@\p{L}\p{N}_/-])(?:[\p{L}\p{N}](?:[\p{L}\p{N}-]{0,61}[\p{L}\p{N}])?\.)+[\p{L}]{2,63}(?:/[^\s<>\"]*)?"#) {
+            for m in re.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
+                guard let r = Range(m.range, in: text) else { continue }
+                let value = String(text[r]).trimmingCharacters(in: CharacterSet(charactersIn: ".,;:!?)"))
+                guard !entities.contains(where: { $0.kind == "url" && $0.value.contains(value) }) else { continue }
+                entities.append(TextEntity(kind: "url", value: value)); links.append("https://" + value)
+            }
+        }
         // IBANs and Czech domestic accounts
         if let re = try? NSRegularExpression(pattern: "\\b[A-Z]{2}[0-9]{2}(?: ?[A-Z0-9]{4}){3,7}(?: ?[A-Z0-9]{1,4})?\\b") {
             for m in re.matches(in: text, range: NSRange(text.startIndex..., in: text)) {

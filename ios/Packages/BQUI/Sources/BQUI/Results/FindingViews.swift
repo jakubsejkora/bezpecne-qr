@@ -55,6 +55,7 @@ struct ReasonRow: View {
 
 /// The tinted square in front of a reason; it stops growing at the largest non-accessibility size.
 private struct ReasonIcon: View {
+    @Environment(\.bqDesign) private var design
     var icon: String
     var tone: Tone?
     @ScaledMetric(relativeTo: .callout) private var box: CGFloat = 34
@@ -62,9 +63,9 @@ private struct ReasonIcon: View {
     var body: some View {
         Image(systemName: icon)
             .bqFont(17, .semibold, relativeTo: .callout)
-            .foregroundStyle(tone?.color ?? BQColor.label2)
+            .foregroundStyle((design == .signal ? tone?.panelInk(in: design) : tone?.color) ?? BQColor.label2)
             .frame(width: box, height: box)
-            .background(tone?.background ?? BQColor.fill, in: .card(box * 0.32))
+            .background(tone?.panel(in: design) ?? BQColor.fill, in: .card(box * 0.32))
             .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             .accessibilityHidden(true)
     }
@@ -88,6 +89,7 @@ struct ReasonList: View {
 
 /// "Co se stane, když budete pokračovat" — a tinted box per consequence (`.consequence`).
 struct ConsequenceBox: View {
+    @Environment(\.bqDesign) private var design
     var consequence: FindingTexts.Consequence
     @ScaledMetric(relativeTo: .callout) private var iconWidth: CGFloat = 24
 
@@ -110,9 +112,9 @@ struct ConsequenceBox: View {
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .foregroundStyle(consequence.tone.strong)
+        .foregroundStyle(consequence.tone.panelInk(in: design))
         .padding(14)
-        .background(consequence.tone.background, in: .card(Metrics.consequenceRadius))
+        .background(consequence.tone.panel(in: design), in: .card(Metrics.consequenceRadius))
         .blockGap()
         .accessibilityElement(children: .combine)
     }
@@ -148,6 +150,7 @@ struct ChecksList: View {
 
 /// The completeness notice under the type card (cards.js `completenessNotice`).
 struct CompletenessNotice: View {
+    @Environment(\.bqDesign) private var design
     var analysis: Analysis
     var onManualCheck: () -> Void
     @Environment(\.bqLanguage) private var lang
@@ -170,13 +173,17 @@ struct CompletenessNotice: View {
                 }
                 .blockGap()
             }
+            if ["inc.offline", "inc.timeout", "inc.cancelled", "inc.fetch_failed", "inc.https_failed", "inc.http_error", "inc.page_truncated"].contains(completeness.reason ?? "") {
+                Button(lang.t("check.retry"), action: onManualCheck)
+                    .buttonStyle(.bordered).tint(.blue).frame(minHeight: 44).padding(.bottom, 10)
+            }
         }
     }
 
     private func attributedReason(_ c: Completeness) -> AttributedString {
         var head = AttributedString(lang.t("sec.incomplete") + ". ")
         head.inlinePresentationIntent = .stronglyEmphasized
-        return head + AttributedString(Typo.prose(RuleSet.bundled.texts.incomplete(c.reason, lang), lang))
+        return head + AttributedString(Typo.prose(InspectionExplanation.text(analysis, lang), lang))
     }
 
     @ViewBuilder private func manualPart(_ c: Completeness) -> some View {
@@ -184,7 +191,7 @@ struct CompletenessNotice: View {
             Button(action: onManualCheck) {
                 Text(lang.t("sec.manual"))
                     .bqFont(14.5, .semibold, relativeTo: .subheadline)
-                    .foregroundStyle(BQColor.tintText)
+                    .foregroundStyle(design == .signal ? .white : BQColor.tintText)
                     .frame(minHeight: Metrics.minTouch, alignment: .leading)
                     .contentShape(Rectangle())
             }

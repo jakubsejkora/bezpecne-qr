@@ -44,8 +44,10 @@ struct ChromeGlass: ViewModifier {
 
 /// The bar above the sheet content: optional back button, optional title, close button.
 struct SheetChrome: View {
+    @Environment(\.bqReviewControls) private var reviewControls
     var title: String?
     var back: (() -> Void)?
+    var backLabel: String? = nil
     var close: (() -> Void)?
     @Environment(\.bqLanguage) private var lang
 
@@ -53,9 +55,12 @@ struct SheetChrome: View {
         HStack(spacing: 8) {
             Group {
                 if let back {
-                    ChromeButton(systemImage: "chevron.left", label: lang.t("common.back"), action: back)
+                    if let backLabel {
+                        Button(action: back) { Label(backLabel, systemImage: "chevron.left").font(.subheadline.weight(.semibold)).frame(minHeight: 44) }
+                            .buttonStyle(.plain).foregroundStyle(BQColor.label)
+                    } else { ChromeButton(systemImage: "chevron.left", label: lang.t("common.back"), action: back) }
                 } else {
-                    Color.clear.frame(width: Metrics.minTouch, height: Metrics.minTouch)
+                    if let reviewControls { reviewControls } else { Color.clear.frame(width: Metrics.minTouch, height: Metrics.minTouch) }
                 }
             }
             Spacer(minLength: 0)
@@ -86,6 +91,7 @@ struct SheetChrome: View {
 // MARK: - Buttons (`.btn-primary`, `.btn-secondary`, `.btn-plain`)
 
 struct BQButtonStyle: ButtonStyle {
+    @Environment(\.bqDesign) private var design
     enum Kind { case primary, secondary, plain, compact }
     var kind: Kind
     @Environment(\.isEnabled) private var isEnabled
@@ -108,25 +114,17 @@ struct BQButtonStyle: ButtonStyle {
 
     private var foreground: Color {
         switch kind {
-        case .primary: .white
-        case .secondary, .compact, .plain: BQColor.tintText
+        case .primary: design.inverse
+        case .secondary, .compact, .plain: design.ink
         }
     }
 
     @ViewBuilder private var background: some View {
         switch kind {
         case .primary:
-            if #available(iOS 26, *) {
-                // The prototype's iOS 26 look: a lit gradient with a specular top edge.
-                Capsule()
-                    .fill(LinearGradient(colors: [BQColor.hex(0x2B95FF), BQColor.hex(0x0A78F0)], startPoint: .top, endPoint: .bottom))
-                    .overlay(Capsule().strokeBorder(LinearGradient(colors: [.white.opacity(0.45), .clear], startPoint: .top, endPoint: .center), lineWidth: 1.5))
-                    .shadow(color: BQColor.hex(0x0A84FF, 0.35), radius: 9, y: 8)
-            } else {
-                Capsule().fill(BQColor.tint)
-            }
+            RoundedRectangle(cornerRadius: design.buttonRadius).fill(design.ink)
         case .secondary, .compact:
-            Capsule().fill(BQColor.fill)
+            RoundedRectangle(cornerRadius: design.buttonRadius).fill(BQColor.fill)
         case .plain:
             Color.clear
         }

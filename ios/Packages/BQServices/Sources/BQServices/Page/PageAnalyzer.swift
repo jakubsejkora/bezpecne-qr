@@ -12,6 +12,8 @@ public struct PageAnalysis: Sendable, Hashable {
 
     public var facts: PageFacts
     public var refresh: Refresh?
+    /// Retains malformed or unsupported refresh instructions as an incomplete outcome.
+    public var hasRefresh: Bool
     /// Literal URLs that inline scripts or event handlers assign to `location`. Never executed;
     /// candidates, not observed hops.
     public var scriptRedirects: [URL]
@@ -102,7 +104,7 @@ public struct PageAnalyzer: Sendable {
             remoteAccess: PageAnalyzer.remoteAccess(lines: page.lines.map(\.text), links: page.links),
             foreignFormHosts: PageAnalyzer.foreignFormHosts(page.formActions, base: base, pageHost: url.asciiHost)
         )
-        return PageAnalysis(facts: facts, refresh: refresh, scriptRedirects: scriptRedirects, scriptOnly: scriptOnly,
+        return PageAnalysis(facts: facts, refresh: refresh, hasRefresh: page.metaRefresh != nil || refreshHeader != nil, scriptRedirects: scriptRedirects, scriptOnly: scriptOnly,
                             truncated: page.truncated || budget.exhausted || body.count > limits.maxInputBytes)
     }
 

@@ -168,6 +168,17 @@ public struct Analyzer: Sendable {
             completeness = Completeness(.notNeeded, reason: "inc.not_loaded_manifest")
         }
 
+        // Only a newly observed, complete ordinary-web resolution may bypass the shortener.
+        // Legacy inspections and fragment/app-dependent routes retain their original behavior.
+        if parsed.type == .url, parsed.subtype == nil, parsed.sensitivity == nil,
+           completeness.state == .complete, let resolution = inspection?.destination,
+           resolution.state == .resolved, resolution.allowsDirectOpen,
+           let endpoint = resolution.resolved, let candidate = URL(string: endpoint.url),
+           candidate.scheme?.lowercased() == "https", candidate.fragment == nil,
+           case .fetch = gate.evaluate(candidate, hop: 1) {
+            openURL = candidate
+        }
+
         if let printed {
             evidence += detector.printedFindings(printed, scannedRegistrable: scannedRegistrable,
                                                  finalRegistrable: inspection?.final?.registrable)

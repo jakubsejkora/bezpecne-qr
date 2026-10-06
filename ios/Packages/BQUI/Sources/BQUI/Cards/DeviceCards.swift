@@ -3,6 +3,7 @@ import SwiftUI
 
 /// Wi‑Fi network card: SSID, security badge, password hidden until "Ukázat".
 struct WiFiCard: View {
+    @Environment(\.bqDesign) private var design
     var info: WiFiInfo
     var model: ResultModel
     @Environment(\.bqLanguage) private var lang
@@ -13,9 +14,9 @@ struct WiFiCard: View {
         VStack(spacing: 0) {
             Image(systemName: "wifi")
                 .font(.system(size: 36, weight: .semibold))
-                .foregroundStyle(Tone.info.color)
+                .foregroundStyle(design == .signal ? Tone.info.panelInk(in: design) : Tone.info.color)
                 .frame(width: 70, height: 70)
-                .background(Tone.info.background, in: .card(22))
+                .background(Tone.info.panel(in: design), in: .card(22))
                 .padding(.bottom, 8)
                 .accessibilityHidden(true)
             Text(HostFormat.breakable(info.ssid))

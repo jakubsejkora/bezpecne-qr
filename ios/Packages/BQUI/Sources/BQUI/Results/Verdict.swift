@@ -123,16 +123,18 @@ struct Verdict: Equatable {
             tone = .incomplete; icon = Symbol.incomplete; effect = .none
             kicker = typeName
             title = lang.t("band.incomplete")
-            let reason = RuleSet.bundled.texts.incomplete(analysis.completeness.reason, lang)
+            let reason = InspectionExplanation.text(analysis, lang)
             subtitle = Typo.prose(reason.isEmpty ? lang.t("band.incompleteSub") : reason, lang)
             chip = nil
         } else if band == .info {
             tone = .info; icon = Symbol.type(analysis.type); effect = .none
             kicker = nil
-            title = typeName
+            if case .text(let info) = analysis.content, !info.entities.contains(where: { $0.kind == "url" }) {
+                title = lang.t("text.only")
+            } else { title = typeName }
             subtitle = nil
             chip = warning.map { VerdictChip(tone: .caution, text: $0.texts.title) }
-                ?? VerdictChip(tone: .safe, text: lang.t("band.infoChip"))
+                ?? VerdictChip(tone: .info, text: lang.t("band.infoChip"))
         } else {
             tone = .safe; icon = Symbol.safe; effect = .draw
             kicker = typeName

@@ -3,13 +3,15 @@ import SwiftUI
 
 /// The action stack of the result sheet (`.actions`).
 struct ActionsView: View {
-    var plan: ActionPlan
+    var items: [ActionPlan.Item]
     var model: ResultModel
+    init(plan: ActionPlan, model: ResultModel) { self.items = plan.items; self.model = model }
+    init(items: [ActionPlan.Item], model: ResultModel) { self.items = items; self.model = model }
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(spacing: 10) {
-            ForEach(plan.items) { item in
+            ForEach(items) { item in
                 switch item {
                 case .button(let spec):
                     ActionButton(spec: spec, model: model)
@@ -48,13 +50,13 @@ struct ActionButton: View {
         Button {
             switch spec.behavior {
             case .perform(let action): model.perform(action)
-            case .pageExtract: model.route = .pageExtract
+            case .pageExtract: model.pageExtractExpanded.toggle()
             case .none: break
             }
         } label: {
-            ButtonLabel(title: spec.title, icon: spec.icon)
+            ButtonLabel(title: spec.title, icon: spec.icon).frame(maxWidth: .infinity, minHeight: 30)
         }
-        .buttonStyle(BQButtonStyle(kind: kind))
+        .modifier(ResultActionButtonStyle(primary: spec.style == .primary, fallback: kind))
         .disabled(spec.style == .disabled || isBusy)
     }
 
@@ -168,5 +170,16 @@ struct HoldToConfirmButton: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityHint(lang.t("a11y.holdHint"))
         .accessibilityAction { confirmInstead() }
+    }
+}
+
+private struct ResultActionButtonStyle: ViewModifier {
+    var primary: Bool
+    var fallback: BQButtonStyle.Kind
+    @ViewBuilder func body(content: Content) -> some View {
+        if primary {
+            content.buttonStyle(.borderedProminent).tint(.blue).controlSize(.large)
+                .buttonBorderShape(.roundedRectangle(radius: 16))
+        } else { content.buttonStyle(BQButtonStyle(kind: fallback)) }
     }
 }

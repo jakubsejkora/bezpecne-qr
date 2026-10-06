@@ -11,9 +11,15 @@ options:
   createIntermediateGroups: true
   groupSortPosition: top
 
+configs:
+  Debug: debug
+  Release: release
+  DesignReview: release
+
 configFiles:
   Debug: Config/Debug.xcconfig
   Release: Config/Release.xcconfig
+  DesignReview: Config/DesignReview.xcconfig
 
 # Local Swift packages (each also builds and tests on its own).
 packages:
@@ -27,7 +33,7 @@ packages:
 settings:
   base:
     # scripts/bump-version.sh keeps MARKETING_VERSION in sync with /VERSION.
-    MARKETING_VERSION: "0.0.3"
+    MARKETING_VERSION: "0.0.10"
     # scripts/testflight.sh passes the real build number from ios/BUILD_NUMBER.
     CURRENT_PROJECT_VERSION: 1
 
@@ -36,6 +42,7 @@ targets:
     type: application
     platform: iOS
     sources:
+      - path: SharedUI
       - path: BezpecneQR
         excludes: ["Info.plist"]
     settings:
@@ -70,15 +77,15 @@ targets:
       - package: BQServices
       - package: BQUI
     postBuildScripts:
-      # The Debug menu replays the test corpus (the Simulator has no camera). Release builds never contain it.
-      - name: Embed test corpus (Debug only)
+      # Internal comparison builds replay the corpus. Normal Release never contains it.
+      - name: Embed test corpus (internal review only)
         basedOnDependencyAnalysis: false
         inputFiles:
           - $(SRCROOT)/../shared/testdata/samples.json
         outputFiles:
           - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/samples.json
         script: |
-          if [ "$CONFIGURATION" = "Debug" ]; then
+          if [ "$CONFIGURATION" = "Debug" ] || [ "$CONFIGURATION" = "DesignReview" ]; then
             cp "$SRCROOT/../shared/testdata/samples.json" "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/samples.json"
           else
             rm -f "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/samples.json"
@@ -88,8 +95,13 @@ targets:
     type: app-extension
     platform: iOS
     sources:
+      - path: SharedUI
       - path: ShareExtension
         excludes: ["Info.plist"]
+    dependencies:
+      - package: BQCore
+      - package: BQServices
+      - package: BQUI
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: cz.bezpecneqr.app.share
@@ -109,6 +121,35 @@ targets:
             NSExtensionActivationRule:
               NSExtensionActivationSupportsImageWithMaxCount: 1
 
+  BezpecneQRTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: BezpecneQRTests
+      - path: ShareExtension/ShareViewController.swift
+    dependencies:
+      - target: BezpecneQR
+      - package: BQCore
+      - package: BQServices
+      - package: BQUI
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: cz.bezpecneqr.tests
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) BQ_HOST_TESTS
+
+  BezpecneQRUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [BezpecneQRUITests]
+    dependencies:
+      - target: BezpecneQR
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: cz.bezpecneqr.uitests
+        TEST_TARGET_NAME: BezpecneQR
+
 schemes:
   BezpecneQR:
     build:
@@ -116,5 +157,16 @@ schemes:
         BezpecneQR: all
     run:
       config: Debug
+    test:
+      config: Debug
+      targets: [BezpecneQRTests]
     archive:
       config: Release
+
+  BezpecneQRUIReview:
+    build:
+      targets:
+        BezpecneQR: all
+    test:
+      config: Debug
+      targets: [BezpecneQRUITests]

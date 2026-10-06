@@ -3,6 +3,7 @@
 #
 # Usage:
 #   scripts/testflight.sh                 archive + upload an internal-testing-only build
+#   scripts/testflight.sh --design-review internal design comparison build
 #   scripts/testflight.sh --external      upload a build that may later go to external testers / App Review
 #   scripts/testflight.sh --ipa-only      archive + export a distribution-signed .ipa, skip the upload
 #   scripts/testflight.sh --archive-only  sign and archive, skip the export and the upload
@@ -17,14 +18,21 @@ export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Develope
 
 internal=true
 mode=upload
+configuration=Release
 for arg in "$@"; do
   case "$arg" in
     --external) internal=false ;;
+    --design-review) configuration=DesignReview ;;
     --ipa-only) mode=ipa ;;
     --archive-only) mode=archive ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
+
+if [ "$configuration" = DesignReview ] && [ "$internal" = false ]; then
+  echo "Design review builds can only be distributed to internal testers." >&2
+  exit 2
+fi
 
 cd "$root/ios"
 version="$(tr -d '[:space:]' < "$root/VERSION")"
@@ -52,12 +60,12 @@ done
 artifacts="artifacts/$version-$build"
 mkdir -p "$artifacts"
 
-echo "▸ Archiving (Release, automatic signing)"
+echo "▸ Archiving ($configuration, automatic signing)"
 set +e
 xcodebuild archive \
   -project BezpecneQR.xcodeproj \
   -scheme BezpecneQR \
-  -configuration Release \
+  -configuration "$configuration" \
   -destination 'generic/platform=iOS' \
   -archivePath "$artifacts/BezpecneQR.xcarchive" \
   CURRENT_PROJECT_VERSION="$build" \

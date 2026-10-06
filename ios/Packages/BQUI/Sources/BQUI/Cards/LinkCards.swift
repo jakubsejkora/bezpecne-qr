@@ -14,44 +14,65 @@ struct LinkCard: View {
     var analysis: Analysis
     var info: LinkInfo
     @Environment(\.bqLanguage) private var lang
+    @Environment(\.bqDesign) private var design
+    @State private var addressExpanded = false
 
     var body: some View {
         let inspection = analysis.inspection
-        let final = inspection?.final
-        let host = HostFormat.display(final?.host ?? info.hostDisplay ?? info.host)
-        let registrable = final?.registrable ?? info.registrable
+        let resolution = analysis.linkResolution
+        let final = resolution?.resolved
+        // The compact Signal card keeps the ASCII domain visible even though the full URL
+        // moved into details, so look-alike IDNs still expose their xn-- form at first sight.
+        let observed = final ?? resolution?.lastObserved
+        let host = observed?.host ?? info.host
+        let registrable = observed?.registrable ?? info.registrable
         // The ASCII form is shown on purpose: it exposes look-alike letters (xn--…).
-        let shownURL = final?.url ?? info.url
 
         VStack(alignment: .leading, spacing: 0) {
-            CardLabel(text: lang.t("url.target"))
+            if final == nil {
+                Text(lang.t(analysis.completeness.reason == "inc.pending" ? "destination.checking" :
+                            resolution?.state == .appHandoff ? "destination.handoff" : "destination.unknown"))
+                    .font(.headline).fixedSize(horizontal: false, vertical: true).padding(.bottom, 10)
+            }
+            CardLabel(text: lang.t(final != nil ? "destination.resolved" : observed != nil ? "destination.observed" : "destination.scanned"))
             HostText(host: host, registrable: registrable, size: 24, relativeTo: .title2, regular: .medium, emphasis: .heavy)
                 .foregroundStyle(BQColor.label)
                 .padding(.top, 4)
                 .padding(.bottom, 6)
-            MonoText(text: shownURL)
+            if !analysis.isSensitive {
+                Disclosure(title: lang.t("destination.addresses"), isExpanded: $addressExpanded) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        CardLabel(text: lang.t("destination.originalURL"))
+                        MonoText(text: info.url)
+                        if let final {
+                            CardLabel(text: lang.t("destination.resolvedURL"))
+                            MonoText(text: final.url)
+                        } else if let observed, observed.url != info.url {
+                            CardLabel(text: lang.t("destination.observed"))
+                            MonoText(text: observed.url)
+                        }
+                        SubHeading(text: lang.t("url.journey"))
+                        JourneyView(stops: JourneyView.stops(analysis, info, lang))
+                    }.padding(.vertical, 8)
+                }
+            }
             if let userinfo = info.userinfo {
                 FinePrint(icon: Symbol.caution, text: "\(userinfo)@ — \(lang.t("url.userinfo"))")
             }
             if let inner = info.inner {
                 FinePrint(icon: "link", text: lang.t("url.inner") + ":", bold: inner)
             }
-            if info.upgraded != nil, analysis.checks.contains(where: { $0.id == "chk.https_upgraded" }) {
+            if design != .signal, info.upgraded != nil, analysis.checks.contains(where: { $0.id == "chk.https_upgraded" }) {
                 // Only when the HTTPS variant really worked.
                 FinePrint(icon: "lock", text: RuleSet.bundled.texts.check(Finding("chk.https_upgraded"), lang))
             }
-            SubHeading(text: lang.t("url.journey"))
-            JourneyView(stops: JourneyView.stops(analysis, info, lang))
-                .padding(.top, 8)
             if let page = inspection?.page {
-                SubHeading(text: lang.t("url.asks"))
-                AsksChips(asks: page.asks)
-                    .padding(.top, 4)
+                if !page.asks.isEmpty {
+                    SubHeading(text: lang.t("url.asks"))
+                    AsksChips(asks: page.asks).padding(.top, 4)
+                }
                 if let offer = page.offer {
                     Claim(caption: lang.t("url.smallPrint"), text: lang.quoted(offer.text), highlight: true)
-                }
-                if let title = page.title {
-                    Claim(caption: lang.t("url.claim"), text: lang.quoted(title))
                 }
             }
         }
@@ -176,7 +197,7 @@ struct JourneyView: View {
     static func stops(_ analysis: Analysis, _ info: LinkInfo, _ lang: Language) -> [Stop] {
         var out: [Stop] = []
         let chain = analysis.inspection?.chain ?? []
-        let final = analysis.inspection?.final
+        let final = analysis.linkResolution?.resolved
         if chain.isEmpty {
             out.append(Stop(id: 0, host: HostFormat.display(info.hostDisplay ?? info.host), meta: nil, state: .normal))
             out.append(Stop(id: 1, host: nil, meta: lang.t("url.unknownTarget"), state: .unknown))

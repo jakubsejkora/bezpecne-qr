@@ -1,5 +1,6 @@
-#if DEBUG
+#if DEBUG || DESIGN_REVIEW
 import BQCore
+import BQServices
 import BQUI
 import SwiftUI
 
@@ -9,13 +10,74 @@ import SwiftUI
 enum DebugLaunch {
     private static var done = false
 
+    /// Internal recording fixture: exercise the real preference and guide rendering, then restore it.
+    static func recordAimComparison(_ flow: ScanFlow) async {
+        guard flow.isAimPreview, flow.scannerVisible, flow.appActive,
+              UserDefaults.standard.bool(forKey: "BQCycleAims") else { return }
+        let store = SharedSettings.defaults
+        let previous = store.object(forKey: SharedSettings.aim)
+        defer {
+            if let previous { store.set(previous, forKey: SharedSettings.aim) }
+            else { store.removeObject(forKey: SharedSettings.aim) }
+        }
+        do {
+            try await Task.sleep(for: .seconds(1))
+            for guide in AimGuideStyle.allCases {
+                try Task.checkCancellation()
+                store.set(guide.rawValue, forKey: SharedSettings.aim)
+                try await Task.sleep(for: .milliseconds(1600))
+            }
+        } catch { /* Leaving the scanner ends the recording fixture. */ }
+    }
+
     /// `-BQDebugOpen settings` opens Settings at launch (for screenshots).
-    static var openSettings: Bool { UserDefaults.standard.string(forKey: "BQDebugOpen") == "settings" }
+    static var openTab: AppTab? {
+        switch UserDefaults.standard.string(forKey: "BQDebugOpen") {
+        case "settings", "lab", "sharing", "scores": .settings
+        case "history": .settings
+        case "help": .help
+        default: nil
+        }
+    }
 
     static func run(_ flow: ScanFlow) {
         guard !done else { return }
         done = true
         let args = UserDefaults.standard
+        if let direction = args.string(forKey: "BQDesign") { SharedSettings.defaults.set(direction, forKey: SharedSettings.design) }
+        if let preset = args.string(forKey: "BQSignalPreset"), SignalPreset(rawValue: preset) != nil {
+            SharedSettings.defaults.set(preset, forKey: SharedSettings.signalPreset)
+        }
+        if let presentation = args.string(forKey: "BQResultPresentation"), ResultPresentationStyle(rawValue: presentation) != nil {
+            SharedSettings.defaults.set(presentation, forKey: SharedSettings.resultPresentation)
+        }
+        if let chart = args.string(forKey: "BQScoreChart"), ScoreChartStyle(rawValue: chart) != nil {
+            SharedSettings.defaults.set(chart, forKey: SharedSettings.scoreChart)
+        }
+        if let fade = args.string(forKey: "BQFadeTreatment"), FadeTreatment(rawValue: fade) != nil {
+            SharedSettings.defaults.set(fade, forKey: SharedSettings.fadeTreatment)
+        }
+        if let bar = args.string(forKey: "BQStatusBar"), ReviewStatusBar(rawValue: bar) != nil {
+            SharedSettings.defaults.set(bar, forKey: SharedSettings.statusBar)
+        }
+        if let aim = args.string(forKey: "BQAimStyle"), AimGuideStyle(rawValue: aim) != nil {
+            SharedSettings.defaults.set(aim, forKey: SharedSettings.aim)
+        }
+        if args.bool(forKey: "BQComparisonPreview") {
+            let ids = ["url-menu-shortener", "url-parking-fake", "url-free-hosting"]
+            let analyses = ids.compactMap { id -> Analysis? in
+                guard let s = DebugSamplesScreen.samples.first(where: { $0.id == id }) else { return nil }
+                return Analyzer().analyze(ScannedCode(text: s.payload, source: .debug), inspection: s.inspection)
+            }
+            flow.injectComparisonReplay(analyses, image: CaptureExamples.make(.crowded)); return
+        }
+        if args.bool(forKey: "BQAimPreview") { flow.previewAim(); return }
+        if let style = args.string(forKey: "BQCaptureStyle") {
+            BQServices.SharedSettings.defaults.set(style, forKey: BQServices.SharedSettings.capture)
+            if let direction = args.string(forKey: "BQDesign") { BQServices.SharedSettings.defaults.set(direction, forKey: BQServices.SharedSettings.design) }
+            CaptureExamples.replay(flow, scene: CaptureExamples.Scene(rawValue: args.string(forKey: "BQCaptureScene") ?? "single") ?? .single)
+            return
+        }
         if let id = args.string(forKey: "BQDebugSample"), let sample = DebugSamplesScreen.samples.first(where: { $0.id == id }) {
             DebugSamplesScreen.replay(sample, in: flow, live: false)
         } else if let payload = args.string(forKey: "BQDebugURL") {
@@ -62,11 +124,9 @@ struct DebugSamplesScreen: View {
 
     var body: some View {
         List {
-            Section {
-                Toggle("Skutečná kontrola sítě (místo uložené ukázky)", isOn: $liveNetwork)
-            } footer: {
-                Text("\(Self.samples.count) vzorků ze shared/testdata/samples.json")
-            }
+            #if DEBUG
+            Section { Toggle("Skutečná kontrola sítě (místo uložené ukázky)", isOn: $liveNetwork) }
+            #endif
             ForEach(["links", "payments", "comms", "security", "places", "other"], id: \.self) { group in
                 let items = filtered.filter { $0.group == group }
                 if !items.isEmpty {
