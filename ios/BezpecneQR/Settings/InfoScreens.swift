@@ -14,12 +14,11 @@ struct PrivacyScreen: View {
                     Text(L10n.t("priv.p1", [:], lang))
                     Text(L10n.t("priv.p2", [:], lang))
                     Text(L10n.t("priv.p3", [:], lang))
+                    #if DEBUG || DESIGN_REVIEW
+                    Text(L10n.t("priv.export", [:], lang))
+                    #endif
                 }
                 .padding(.vertical, 6)
-            }
-            Section(L10n.t("priv.share", [:], lang)) {
-                Label(L10n.t("set.sharingSoon", [:], lang), systemImage: "person.2.badge.gearshape")
-                    .foregroundStyle(.secondary)
             }
             Section {
                 Link(destination: URL(string: "https://github.com/jakubsejkora/bezpecne-qr/blob/main/PRIVACY.md")!) {
@@ -27,6 +26,7 @@ struct PrivacyScreen: View {
                 }
             }
         }
+        .modifier(DesignListModifier())
         .navigationTitle(L10n.t("priv.title", [:], lang))
     }
 }
@@ -70,6 +70,7 @@ struct OperatorGuideScreen: View {
                 }
             }
         }
+        .modifier(DesignListModifier())
         .navigationTitle(L10n.t("op.title", [:], lang))
     }
 }
@@ -103,6 +104,7 @@ struct RecoveryGuideScreen: View {
                 }
             }
         }
+        .modifier(DesignListModifier())
         .navigationTitle(guide.title.resolve(lang))
     }
 }
@@ -133,6 +135,7 @@ struct AboutScreen: View {
                 LabeledContent(L10n.t("set.license", [:], lang), value: L10n.t("set.licenseVal", [:], lang))
             }
         }
+        .modifier(DesignListModifier())
         .navigationTitle(L10n.t("about.title", [:], lang))
     }
 }

@@ -3,7 +3,7 @@
 **Bezplatná aplikace, která u každého QR kódu vysvětlí, co dělá — dřív, než cokoli otevřete.**
 iOS jako první, Android později. · 🇬🇧 [English version below](#-english)
 
-Verze **0.0.3** · [Co je nového](CHANGELOG.md) · [Prototyp](prototype/) · Licence [AGPL-3.0](LICENSE) + [komerční licence](COMMERCIAL.md)
+Verze **0.0.10** · [Co je nového](CHANGELOG.md) · [Prototyp](prototype/) · Licence [AGPL-3.0](LICENSE) + [komerční licence](COMMERCIAL.md)
 
 ---
 
@@ -17,14 +17,14 @@ Fotoaparát v telefonu otevře kód jedním klepnutím a nic nevysvětlí. Bezpe
 
 - **Každý kód nejdřív zkontroluje** — přímo v telefonu, bez vlastního serveru.
 - **Odkazy:**
-  - ukáže skutečný cíl a cestu přes přesměrování;
+  - ukáže zjištěný cíl a pozorovanou cestu přes přesměrování; pokud cíl nelze zjistit, řekne proč;
   - ukáže, co po vás stránka chce (telefonní číslo, kartu, heslo);
   - upozorní na skryté předplatné.
 
   Stránku si aplikace načte sama, bez vašich cookies a bez spouštění skriptů. Před platební bránou operátora se zastaví, aby nevyzradila vaše číslo.
 - **Platby:** ukáže částku, účet a banku. Umí QR Platbu, QR Fakturu, evropské platby (EPC), švýcarské QR faktury a kryptoměny. Upozorní, že jméno příjemce v kódu nikdo neověřuje.
 - **Pasti v SMS a telefonech:** pozná prémiová čísla i jejich cenu a kódy pro přesměrování hovorů.
-- **Citlivé kódy:** pozná přihlašovací kódy (WhatsApp, Telegram, Signal), export 2FA klíčů, obnovovací fráze kryptopeněženek a instalace profilů. Takové kódy nikam neukládá ani neodesílá.
+- **Citlivé kódy:** pozná přihlašovací kódy (WhatsApp, Telegram, Signal), export 2FA klíčů, obnovovací fráze kryptopeněženek a instalace profilů. Citlivý obsah neukládá do historie a nekontroluje přes síť; případné předání systému vyžaduje výslovnou akci. Historie může obsahovat jen zkrácený necitlivý popis.
 - **Výsledek:** orientační skóre rizika 0–100, důvody („Proč?“) a popis toho, co se stane, když budete pokračovat.
 - **Soukromí:** bez reklam, sledování a cizích SDK. Historie zůstává jen v telefonu.
 - **Ochrana u operátora:** návod, jak si zablokovat platby třetím stranám.
@@ -37,7 +37,7 @@ Zatím je hotové:
 - testovací korpus s 80 vzorky ([`shared/testdata/`](shared/testdata/));
 - **funkční iOS aplikace** ([`ios/`](ios/), testovací verze přes TestFlight): skenování kamerou i z Fotek, všechny typy kódů, kontrola odkazu (přesměrování, co stránka chce, Quad9 a stáří domény), skóre rizika s důvody, karty a akce podle typu, historie a nastavení.
 
-Další kroky: rozšíření pro sdílení obrázků, kontrola textu vytištěného vedle kódu a ladění podle testování. Plán je v [`docs/roadmap.md`](docs/roadmap.md).
+Verze 0.0.10 sjednocuje vzhled na Signal / Fade / Vivid, používá jeden spodní panel s rozbalovacími podrobnostmi a přesouvá Historii do Nastavení. Přidává opatrné porovnání více kódů, spolehlivější obnovu kamery, vysvětlení čistého textu a interní export historie s diagnostikou. Vzhledové volby zůstávají jen pro graf skóre a zvýraznění po zachycení. Sdílení obrázků používá stejnou analýzu. [Roadmapa](docs/roadmap.md) a [podmínky veřejného vydání](docs/release-checklist.md) oddělují hotové funkce od zbývajících kontrol na iPhonu, iOS 18 a podkladů pro App Store.
 
 ## 🤝 Hledáme partnery
 
@@ -90,14 +90,14 @@ In September 2026 Czech journalist Janek Rubeš (Kluci z Prahy) exposed fake “
 ### What the app does (V1 plan)
 - **Checks every code first**, on the device, with no backend of our own.
 - **Links:**
-  - shows the real destination and the redirects it went through;
+  - shows the observed destination and redirect trail, or explains why the destination remains unresolved;
   - shows what the page asks for (phone number, card, password);
   - flags hidden subscriptions.
 
   The app loads the page itself, without your cookies and without running scripts. It stops before any mobile-operator payment gateway, so your number isn't exposed.
 - **Payments:** shows the amount, account and bank for Czech QR Platba/QR Faktura, EPC, Swiss QR-bills and crypto. It warns that nobody verifies the recipient name inside a code.
 - **SMS and phone traps:** detects premium-rate numbers (with their price) and call-forwarding codes.
-- **Sensitive codes:** recognises login/device-link codes (WhatsApp, Telegram, Signal), 2FA exports, wallet seed phrases and profile installs. These are never stored or sent.
+- **Sensitive codes:** recognises login/device-link codes (WhatsApp, Telegram, Signal), 2FA exports, wallet seed phrases and profile installs. Sensitive payloads never enter History or network inspection; any supported system handoff requires an explicit action. History may retain a redacted summary.
 - **Result:** an indicative 0–100 risk score, the reasons behind it, and what will happen if you continue.
 - **Privacy:** no ads, no tracking, no third-party SDKs. History stays on the phone.
 - **Operator guide:** how to block third-party payments at Czech mobile operators.
@@ -117,7 +117,7 @@ Done so far:
 - an 80-sample test corpus;
 - **a working iOS app** ([`ios/`](ios/), on TestFlight for testers): camera and photo scanning, every code type, the link check (redirects, what the page asks for, Quad9 and domain age), the risk score with reasons, type cards and actions, history and settings.
 
-Next: the image share extension, the printed-text-vs-QR check and tuning from testing. See [`docs/roadmap.md`](docs/roadmap.md).
+Version 0.0.10 fixes the design to Signal / Fade / Vivid, uses one bottom sheet with inline details, and moves History into Settings. It adds cautious multi-code comparison, camera recovery, clear text-only results and internal history export with diagnostics. Only score-chart and capture-style choices remain in internal Settings. Image sharing uses the same analysis. See the [roadmap](docs/roadmap.md) and [public-release checklist](docs/release-checklist.md) for the remaining iPhone, iOS 18 and store-material gates.
 
 ### License
 - The code is licensed under **AGPL-3.0**.

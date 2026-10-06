@@ -104,23 +104,173 @@ struct SnapshotTests {
         try render(ResultScreen(model: copied), "states/payment-copied-toast")
     }
 
+    @Test("All app designs render the full corpus", arguments: DesignDirection.allCases, Corpus.ids)
+    func directions(_ design: DesignDirection, _ id: String) throws {
+        try render(ResultScreen(model: model(id)).environment(\.bqDesign, design), "designs/\(design.rawValue)/\(id)")
+    }
+
+    @Test("Designs support dark, compact and accessibility layouts", arguments: DesignDirection.allCases)
+    func designAccessibility(_ design: DesignDirection) throws {
+        for id in ["url-parking-fake", "spd-basic", "wifi-wpa2"] {
+            try render(ResultScreen(model: model(id, language: .en)).environment(\.bqDesign, design), "designs/\(design.rawValue)/dark-en-\(id)", scheme: .dark)
+            try render(ResultScreen(model: model(id)).environment(\.bqDesign, design)
+                ,
+                "designs/\(design.rawValue)/ax5-\(id)", typeSize: .accessibility5)
+        }
+    }
+
+    @Test("Every capture style renders every geometry", arguments: CaptureStyle.allCases, 0..<6)
+    func captureStyles(_ style: CaptureStyle, _ scene: Int) throws {
+        let size = CGSize(width: 390, height: 600)
+        let image = UIGraphicsImageRenderer(size: size).image { ctx in
+            UIColor.darkGray.setFill(); ctx.fill(CGRect(origin: .zero, size: size))
+            UIColor.white.setFill(); ctx.fill(CGRect(x: 100, y: 200, width: 150, height: 150))
+        }
+        let rects: [CGRect] = switch scene {
+        case 1: [CGRect(x: 0.1, y: 0.2, width: 0.25, height: 0.25), CGRect(x: 0.6, y: 0.5, width: 0.25, height: 0.25)]
+        case 3: [CGRect(x: 0.46, y: 0.5, width: 0.08, height: 0.08)]
+        case 4: [CGRect(x: 0, y: 0.3, width: 0.2, height: 0.2), CGRect(x: 0.8, y: 0.7, width: 0.2, height: 0.2)]
+        case 5: (0..<8).map { CGRect(x: 0.1 + Double($0 % 4) * 0.19, y: 0.4 + Double($0 / 4) * 0.17, width: 0.16, height: 0.15) }
+        default: [CGRect(x: 0.25, y: 0.3, width: 0.4, height: 0.3)]
+        }
+        let regions = scene == 2 ? [CaptureRegion(corners: [CGPoint(x: 0.2, y: 0.4), CGPoint(x: 0.6, y: 0.3), CGPoint(x: 0.7, y: 0.6), CGPoint(x: 0.3, y: 0.7)])] : rects.map { CaptureRegion(rect: $0) }
+        try render(CapturePreview(CapturePresentation(image: image, regions: regions)).frame(height: 600)
+            .environment(\.bqCaptureStyle, style), "captures/\(style.rawValue)-\(scene)")
+    }
+
     // MARK: Rendering
+
+    @Test("Eight independent camera guides", arguments: AimGuideStyle.allCases)
+    func aimingGuides(_ style: AimGuideStyle) throws {
+        try render(AimGuide(style: style).frame(height: 300).padding(20).background(.black), "aims/\(style.rawValue)")
+    }
+
+    @Test("Signal risk states in both languages and appearances", arguments: [
+        "url-menu-shortener", "url-free-hosting", "url-parking-fake", "url-offline-menu", "sms-premium-ano", "wifi-wpa2"
+    ])
+    func signalStates(_ id: String) throws {
+        for lang in [Language.cs, .en] {
+            let m = model(id, language: lang)
+            for dark in [false, true] {
+                try render(ResultScreen(model: m).environment(\.bqDesign, .signal),
+                           "signal/\(id)-\(lang.rawValue)-\(dark ? "dark" : "light")", scheme: dark ? .dark : .light, width: 375)
+            }
+        }
+        let m = model(id)
+        m.moreActionsExpanded = true
+        try render(ResultScreen(model: m).environment(\.bqDesign, .signal),
+                   "signal/\(id)-accessible-options", typeSize: .accessibility5, width: 375)
+        m.capabilities = .imageExtension
+        try render(ResultScreen(model: m).environment(\.bqDesign, .signal), "signal/\(id)-extension", width: 375)
+    }
+
+    @Test("Signal presets across formats, risk states, languages and appearances", arguments: SignalPreset.allCases)
+    func signalPresetMatrix(_ preset: SignalPreset) throws {
+        let cases = ["url-menu-shortener", "url-free-hosting", "url-parking-fake", "url-offline-menu", "sms-premium-ano", "wifi-wpa2"]
+        for style in ResultPresentationStyle.allCases {
+            let layout: ResultScreen.Layout = style == .popup ? .popup : style == .sheet ? .summary : .full
+            for id in cases {
+                for language in [Language.cs, .en] {
+                    for dark in [false, true] {
+                        try render(ResultScreen(model: model(id, language: language), layout: layout)
+                            .environment(\.bqSignalPreset, preset),
+                            "review7/\(preset.rawValue)/\(style.rawValue)-\(id)-\(language.rawValue)-\(dark ? "dark" : "light")",
+                            scheme: dark ? .dark : .light, width: 375)
+                    }
+                }
+            }
+        }
+        for id in cases {
+            try render(ResultScreen(model: model(id)).environment(\.bqSignalPreset, preset),
+                "review7/\(preset.rawValue)/ax5-\(id)", typeSize: .accessibility5, width: 375)
+            let m = model(id); m.capabilities = .imageExtension
+            try render(ResultScreen(model: m).environment(\.bqSignalPreset, preset), "review7/\(preset.rawValue)/extension-\(id)")
+        }
+        try render(SignalScannerHeading().measureFadeHeader().frame(minHeight: 250).scannerFadeBackground()
+            .environment(\.bqSignalPreset, preset).background(.black),
+            "review7/\(preset.rawValue)/scanner")
+    }
+
+    @Test("Score charts preserve risk states and accessible layouts", arguments: ScoreChartStyle.allCases)
+    func scoreCharts(_ style: ScoreChartStyle) throws {
+        for id in ["url-menu-shortener", "url-free-hosting", "url-parking-fake", "url-offline-menu", "sms-premium-ano", "wifi-wpa2"] {
+            for dark in [false, true] {
+                let m = model(id, language: dark ? .en : .cs)
+                try render(ResultScreen(model: m, layout: .summary)
+                    .environment(\.bqSignalPreset, .poster).environment(\.bqScoreChart, style),
+                    "score-charts/\(style.rawValue)/\(id)-\(dark ? "dark-en" : "light-cs")", scheme: dark ? .dark : .light, width: 375)
+            }
+        }
+        for preset in SignalPreset.allCases {
+            try render(ResultScreen(model: model("url-free-hosting"), layout: .popup)
+                .environment(\.bqSignalPreset, preset).environment(\.bqScoreChart, style),
+                "score-charts/\(style.rawValue)/\(preset.rawValue)-popup", width: 320)
+        }
+        let m = model("url-offline-menu"); m.capabilities = .imageExtension
+        try render(ResultScreen(model: m).environment(\.bqScoreChart, style),
+                   "score-charts/\(style.rawValue)/extension-ax5", typeSize: .accessibility5, width: 320)
+        try render(VStack(spacing: 24) {
+            ForEach([0, 24, 25, 59, 60, 100], id: \.self) { score in
+                Text("\(score)/100").font(.headline)
+                RiskScoreChart(score: score, muted: false, style: style)
+                RiskScoreChart(score: score, muted: true, style: style)
+            }
+        }.padding(24), "score-charts/\(style.rawValue)/endpoints")
+    }
+
+    @Test("Continuous Fade across presentations, risk states, languages and appearances", arguments: FadeTreatment.allCases)
+    func fadeMatrix(_ treatment: FadeTreatment) throws {
+        let cases = ["url-menu-shortener", "url-free-hosting", "url-parking-fake", "url-offline-menu", "sms-premium-ano", "wifi-wpa2"]
+        for style in ResultPresentationStyle.allCases {
+            let layout: ResultScreen.Layout = style == .popup ? .popup : style == .sheet ? .summary : .full
+            for id in cases {
+                for language in [Language.cs, .en] {
+                    for dark in [false, true] {
+                        try render(ResultScreen(model: model(id, language: language), layout: layout)
+                            .environment(\.bqSignalPreset, .fade).environment(\.bqFadeTreatment, treatment),
+                            "fade/\(treatment.rawValue)/\(style.rawValue)-\(id)-\(language.rawValue)-\(dark ? "dark" : "light")",
+                            scheme: dark ? .dark : .light, width: 375)
+                    }
+                }
+            }
+        }
+        for id in cases + ["url-long-domain", "spd-basic"] {
+            try render(ResultScreen(model: model(id)).environment(\.bqSignalPreset, .fade).environment(\.bqFadeTreatment, treatment),
+                       "fade/\(treatment.rawValue)/ax5-\(id)", typeSize: .accessibility5, width: 320)
+            let m = model(id); m.capabilities = .imageExtension
+            try render(ResultScreen(model: m).environment(\.bqSignalPreset, .fade).environment(\.bqFadeTreatment, treatment),
+                       "fade/\(treatment.rawValue)/extension-\(id)", width: 375)
+        }
+        for bright in [false, true] {
+            try render(VStack(spacing: 0) {
+                    VStack(spacing: 16) {
+                        HStack { Spacer(); Image(systemName: "slider.horizontal.3").frame(width: 44, height: 44) }.padding(.horizontal, 22)
+                        SignalScannerHeading()
+                    }.measureFadeHeader()
+                    Spacer()
+                    AimGuide().frame(width: 230, height: 230)
+                    Spacer()
+                }.frame(height: 650).scannerFadeBackground().background(bright ? .white : .black)
+                    .environment(\.bqSignalPreset, .fade).environment(\.bqFadeTreatment, treatment),
+                    "fade/\(treatment.rawValue)/camera-\(bright)", width: 375)
+        }
+    }
 
     private func model(_ id: String, language: Language = .cs) -> ResultModel {
         ResultModel(analysis: Corpus.analysis(id), fromCamera: true, language: language)
     }
 
     private func render<V: View>(_ view: V, _ name: String, scheme: ColorScheme = .light,
-                                 typeSize: DynamicTypeSize = .large) throws {
+                                 typeSize: DynamicTypeSize = .large, width: CGFloat = Self.width) throws {
         let content = view
             .environment(\.bqSnapshot, true)
             .environment(\.colorScheme, scheme)
             .environment(\.dynamicTypeSize, typeSize)
             .environment(\.locale, Locale(identifier: "cs_CZ"))
-            .frame(width: Self.width)
+            .frame(width: width)
             .background(BQColor.background)
         let renderer = ImageRenderer(content: content)
-        renderer.proposedSize = ProposedViewSize(width: Self.width, height: nil)
+        renderer.proposedSize = ProposedViewSize(width: width, height: nil)
         renderer.scale = 2
         var image = try #require(renderer.uiImage, "\(name) could not be rendered")
         if image.size.height * renderer.scale > 8_000 {
@@ -132,7 +282,7 @@ struct SnapshotTests {
         let url = Self.output.appendingPathComponent(name + ".png")
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try data.write(to: url)
-        #expect(image.size.width == Self.width)
+        #expect(image.size.width == width)
         #expect(image.size.height > 200, "\(name) rendered suspiciously short (\(image.size.height) pt)")
         // L10nTests deliberately asks for "does.not.exist"; tests run in parallel and share the set.
         let missing = L10n.missingKeys.subtracting(["does.not.exist"])

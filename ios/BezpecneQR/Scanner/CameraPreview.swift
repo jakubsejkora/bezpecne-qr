@@ -1,10 +1,22 @@
 import AVFoundation
+import BQCore
 import SwiftUI
 
 /// Hosts the live camera preview and converts metadata coordinates into view coordinates.
 @MainActor
 final class PreviewBox {
     fileprivate weak var layer: AVCaptureVideoPreviewLayer?
+
+    func region(of code: DetectedCode, imageSize: CGSize) -> CaptureRegion {
+        guard let layer, imageSize.width > 0, imageSize.height > 0 else { return CaptureRegion(corners: []) }
+        let size = layer.bounds.size
+        let scale = max(size.width / imageSize.width, size.height / imageSize.height)
+        guard scale > 0 else { return CaptureRegion(corners: []) }
+        let w = imageSize.width * scale, h = imageSize.height * scale
+        return CaptureRegion(corners: viewCorners(of: code).map {
+            CGPoint(x: ($0.x - (size.width - w) / 2) / w, y: ($0.y - (size.height - h) / 2) / h)
+        })
+    }
 
     /// Converts a code's normalized corners to points in the preview view.
     func viewCorners(of code: DetectedCode) -> [CGPoint] {

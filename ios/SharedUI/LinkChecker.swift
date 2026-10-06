@@ -3,6 +3,11 @@ import BQServices
 import BQUI
 import Foundation
 
+protocol LinkChecking: Sendable {
+    func check(_ url: URL, pageFetch: Bool, domainChecks: Bool, manual: Bool,
+               progress: @escaping @Sendable (CheckStep) -> Void) async -> Inspection
+}
+
 /// Adapter between the scan flow and BQServices' link inspector. One inspector lives for the
 /// whole app session so the Quad9 and RDAP caches carry over between scans.
 struct LinkChecker: LinkChecking {

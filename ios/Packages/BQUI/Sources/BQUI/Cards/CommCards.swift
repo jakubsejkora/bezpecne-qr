@@ -3,15 +3,16 @@ import SwiftUI
 
 /// `.price-tag`: a slightly tilted sticker with the price.
 struct PriceTag: View {
+    @Environment(\.bqDesign) private var design
     var text: String
 
     var body: some View {
         Text(text)
             .bqFont(18, .heavy, design: .rounded, relativeTo: .title3)
-            .foregroundStyle(Tone.alert.strong)
+            .foregroundStyle(Tone.alert.panelInk(in: design))
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(Tone.alert.background, in: .card(12))
+            .background(Tone.alert.panel(in: design), in: .card(12))
             .rotationEffect(.degrees(-2))
             .padding(.top, 10)
     }

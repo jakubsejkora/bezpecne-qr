@@ -6,9 +6,7 @@ import SwiftUI
 extension View {
     /// `.card` / `.tcard`: an opaque rounded surface. Facts never sit on glass.
     func bqCard(radius: CGFloat = Metrics.cardRadius, padding: CGFloat = 16, color: Color = BQColor.card) -> some View {
-        self.padding(padding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(color, in: .card(radius))
+        modifier(DesignCard(radius: radius, padding: padding, color: color))
     }
 
     /// Bottom margin between blocks of the sheet (`margin-bottom: 12px`).
@@ -82,6 +80,7 @@ struct FlowLayout: Layout {
 
 /// `.chip` (and `.chip.safe/.caution/…`): a small capsule with an optional icon.
 struct Chip: View {
+    @Environment(\.bqDesign) private var design
     var text: String
     var icon: String?
     var tone: Tone?
@@ -97,10 +96,10 @@ struct Chip: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .bqFont(13, .semibold, relativeTo: .footnote)
-        .foregroundStyle(tone?.chipText ?? BQColor.label)
+        .foregroundStyle(tone?.chipInk(in: design) ?? BQColor.label)
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
-        .background(tone?.background ?? BQColor.fill, in: .capsule)
+        .background(tone?.panel(in: design) ?? BQColor.fill, in: .capsule)
     }
 }
 
@@ -172,6 +171,7 @@ struct CardLabel: View {
 
 /// `.notice`: a tinted box with an icon (incomplete check, sticker tip, extract note).
 struct Notice<Content: View>: View {
+    @Environment(\.bqDesign) private var design
     var icon: String
     var tone: Tone = .incomplete
     @ViewBuilder var content: Content
@@ -189,11 +189,11 @@ struct Notice<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .bqFont(14.5, relativeTo: .subheadline)
-        .foregroundStyle(tone.strong)
+        .foregroundStyle(tone.panelInk(in: design))
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(tone.background, in: .card(Metrics.noticeRadius))
+        .background(tone.panel(in: design), in: .card(Metrics.noticeRadius))
     }
 }
 
@@ -413,5 +413,16 @@ struct MonoText: View {
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityLabel(text)
+    }
+}
+
+private struct DesignCard: ViewModifier {
+    var radius: CGFloat
+    var padding: CGFloat
+    var color: Color
+    @Environment(\.bqDesign) private var design
+    func body(content: Content) -> some View {
+        content.padding(padding).frame(maxWidth: .infinity, alignment: .leading)
+            .background(color, in: RoundedRectangle(cornerRadius: min(radius, design.radius)))
     }
 }

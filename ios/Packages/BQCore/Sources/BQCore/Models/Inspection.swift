@@ -14,14 +14,19 @@ public struct Inspection: Sendable, Hashable, Codable {
     public var domain: DomainFacts?
     /// Whether the inspection finished. Nil in corpus mocks (the sample's own completeness applies).
     public var completeness: Completeness?
+    /// Resolution is independent of how thoroughly the page/domain could be checked.
+    public var destination: DestinationResolution?
+    public var transportError: String?
 
     public init(chain: [Hop] = [], final: Endpoint? = nil, page: PageFacts? = nil, domain: DomainFacts? = nil,
-                completeness: Completeness? = nil) {
+                completeness: Completeness? = nil, destination: DestinationResolution? = nil, transportError: String? = nil) {
         self.chain = chain
         self.final = final
         self.page = page
         self.domain = domain
         self.completeness = completeness
+        self.destination = destination
+        self.transportError = transportError
     }
 
     public init(from decoder: Decoder) throws {
@@ -31,6 +36,8 @@ public struct Inspection: Sendable, Hashable, Codable {
         page = try c.decodeIfPresent(PageFacts.self, forKey: .page)
         domain = try c.decodeIfPresent(DomainFacts.self, forKey: .domain)
         completeness = try c.decodeIfPresent(Completeness.self, forKey: .completeness)
+        destination = try c.decodeIfPresent(DestinationResolution.self, forKey: .destination)
+        transportError = try c.decodeIfPresent(String.self, forKey: .transportError)
     }
 }
 

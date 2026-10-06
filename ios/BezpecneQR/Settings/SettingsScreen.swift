@@ -1,120 +1,82 @@
 import BQCore
+import BQServices
 import BQUI
 import SwiftData
 import SwiftUI
 
-/// Settings: history (for family checks), internet checks, privacy, help and about.
 struct SettingsScreen: View {
     let flow: ScanFlow
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \ScanRecord.date, order: .reverse) private var history: [ScanRecord]
-    @AppStorage(SettingsKey.historyEnabled) private var historyEnabled = true
-    @AppStorage(SettingsKey.pageFetch) private var pageFetch = true
-    @AppStorage(SettingsKey.domainChecks) private var domainChecks = true
-    private let lang = Language.preferred
-
+    @AppStorage(SharedSettings.history, store: SharedSettings.defaults) private var historyEnabled = true
+    @AppStorage(SharedSettings.pageFetch, store: SharedSettings.defaults) private var pageFetch = true
+    @AppStorage(SharedSettings.domainChecks, store: SharedSettings.defaults) private var domainChecks = true
+    @Environment(\.bqDesign) private var design
+    #if DEBUG || DESIGN_REVIEW
+    @State private var labOpen = false
+    @State private var historyOpen = false
+    #endif
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    NavigationLink {
-                        HistoryScreen(flow: flow, close: { dismiss() })
-                    } label: {
-                        SettingsRow(icon: "clock.arrow.circlepath", color: .gray, title: L10n.t("hist.title", [:], lang), value: "\(history.count)")
-                    }
-                    Toggle(L10n.t("set.historyOn", [:], lang), isOn: $historyEnabled)
-                } header: {
-                    Text(L10n.t("set.history", [:], lang))
-                } footer: {
-                    Text(L10n.t("set.historyFoot", [:], lang))
+                    DesignHeading(L10n.t("set.title", .preferred), subtitle: L10n.t("set.intro", .preferred))
+                        .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                 }
-
-                Section(L10n.t("set.checks", [:], lang)) {
+                #if DEBUG || DESIGN_REVIEW
+                Section {
+                    NavigationLink { DesignLab(flow: flow) } label: {
+                        Label(L10n.t("lab.title", .preferred), systemImage: "slider.horizontal.3").font(.headline)
+                    }
+                } footer: { Text(L10n.t("lab.summary", .preferred)) }
+                #endif
+                Section {
+                    NavigationLink { HistoryScreen(flow: flow, close: {}).modifier(DesignListModifier()) } label: {
+                        Label(L10n.t("hist.title", .preferred), systemImage: "clock")
+                    }
+                    Toggle(L10n.t("set.historyOn", .preferred), isOn: $historyEnabled)
+                } header: { Text(L10n.t("set.history", .preferred)) }
+                  footer: { Text(L10n.t("set.historyFoot", .preferred)) }
+                Section(L10n.t("set.checks", .preferred)) {
                     Toggle(isOn: $pageFetch) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(L10n.t("set.pageFetch", [:], lang))
-                            Text(L10n.t("set.pageFetchSub", [:], lang)).font(.footnote).foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L10n.t("set.pageFetch", .preferred))
+                            Text(L10n.t("set.pageFetchSub", .preferred)).font(.footnote).foregroundStyle(.secondary)
                         }
                     }
                     Toggle(isOn: $domainChecks) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(L10n.t("set.domain", [:], lang))
-                            Text(L10n.t("set.domainSub", [:], lang)).font(.footnote).foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L10n.t("set.domain", .preferred))
+                            Text(L10n.t("set.domainSub", .preferred)).font(.footnote).foregroundStyle(.secondary)
                         }
                     }
                 }
-
-                Section(L10n.t("set.privacy", [:], lang)) {
-                    NavigationLink {
-                        PrivacyScreen()
-                    } label: {
-                        SettingsRow(icon: "hand.raised.fill", color: .blue, title: L10n.t("set.privacy", [:], lang))
-                    }
-                }
-
-                Section(L10n.t("set.help", [:], lang)) {
-                    NavigationLink {
-                        OperatorGuideScreen()
-                    } label: {
-                        SettingsRow(icon: "antenna.radiowaves.left.and.right", color: .green, title: L10n.t("set.operator", [:], lang))
-                    }
-                    NavigationLink {
-                        RecoveryGuideScreen()
-                    } label: {
-                        SettingsRow(icon: "lifepreserver.fill", color: .orange, title: L10n.t("set.recovery", [:], lang))
-                    }
-                }
-
                 Section {
-                    NavigationLink {
-                        AboutScreen()
-                    } label: {
-                        SettingsRow(icon: "heart.fill", color: .pink, title: L10n.t("set.about", [:], lang), value: AppInfo.version)
-                    }
-                    #if DEBUG
-                    NavigationLink {
-                        DebugSamplesScreen(flow: flow, close: { dismiss() })
-                    } label: {
-                        SettingsRow(icon: "ladybug.fill", color: .purple, title: L10n.t("set.debug", [:], lang))
-                    }
-                    #endif
-                } footer: {
-                    Text("Bezpečné QR \(AppInfo.version) · \(L10n.t("set.licenseVal", [:], lang))")
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 12)
+                    NavigationLink { PrivacyScreen() } label: { Label(L10n.t("set.privacy", .preferred), systemImage: "hand.raised") }
+                    NavigationLink { AboutScreen() } label: { Label(L10n.t("set.about", .preferred), systemImage: "info.circle") }
                 }
-            }
-            .navigationTitle(L10n.t("set.title", [:], lang))
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.t("act.close", [:], lang)) { dismiss() }
+                Section {
+                    VStack(spacing: 14) {
+                        Text(L10n.t("credits.creator", .preferred)).font(.headline)
+                        #if DEBUG || DESIGN_REVIEW
+                        Text(L10n.t("credits.coffee", .preferred)).font(.subheadline)
+                        Text(L10n.t("credits.support", .preferred)).font(.footnote).foregroundStyle(.secondary)
+                        Link(L10n.t("credits.visit", .preferred), destination: URL(string: "https://atypika.cz/")!)
+                            .font(.subheadline.weight(.semibold)).tint(.blue).frame(minHeight: 44).accessibilityIdentifier("credits.shop")
+                        #endif
+                        Text("Bezpečné QR · " + AppInfo.version).font(.caption).foregroundStyle(.secondary)
+                    }.multilineTextAlignment(.center).frame(maxWidth: .infinity).padding(.vertical, 28)
+                        .listRowBackground(Color.clear).listRowInsets(EdgeInsets())
                 }
-            }
-        }
-    }
-}
 
-struct SettingsRow: View {
-    var icon: String
-    var color: Color
-    var title: String
-    var value: String?
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.white)
-                .frame(width: 29, height: 29)
-                .background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                .accessibilityHidden(true)
-            Text(title)
-            if let value {
-                Spacer()
-                Text(value).foregroundStyle(.secondary)
-            }
-        }
+            }.modifier(DesignListModifier()).navigationTitle("").navigationBarTitleDisplayMode(.inline)
+            #if DEBUG || DESIGN_REVIEW
+                .navigationDestination(isPresented: $labOpen) {
+                    if UserDefaults.standard.string(forKey: "BQDebugOpen") == "scores" { ScoreChartLab(flow: flow) }
+                    else { DesignLab(flow: flow) }
+                }
+                .navigationDestination(isPresented: $historyOpen) { HistoryScreen(flow: flow, close: {}).modifier(DesignListModifier()) }
+                .onAppear { if UserDefaults.standard.string(forKey: "BQDebugOpen") == "history" { historyOpen = true }; if ["lab", "sharing", "scores"].contains(UserDefaults.standard.string(forKey: "BQDebugOpen") ?? "") { labOpen = true } }
+            #endif
+        }.onChange(of: historyEnabled) { _, enabled in HistoryStore.invalidatePending(enabled: enabled) }
     }
 }
 
@@ -134,13 +96,26 @@ struct HistoryScreen: View {
     let close: () -> Void
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ScanRecord.date, order: .reverse) private var history: [ScanRecord]
-    @AppStorage(SettingsKey.historyEnabled) private var historyEnabled = true
+    @AppStorage(SettingsKey.historyEnabled, store: SharedSettings.defaults) private var historyEnabled = true
     @State private var confirmClear = false
     private let lang = Language.preferred
 
     var body: some View {
         List {
-            if !historyEnabled {
+            Section {
+                DesignHeading(L10n.t("hist.title", lang), subtitle: L10n.t("hist.intro", lang))
+                    .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
+            }
+            #if DEBUG || DESIGN_REVIEW
+            if !history.isEmpty {
+                Section {
+                    NavigationLink { HistoryExportScreen() } label: {
+                        Label(L10n.t("hist.export", lang), systemImage: "square.and.arrow.up")
+                    }
+                }
+            }
+            #endif
+            if !historyEnabled && history.isEmpty {
                 ContentUnavailableView(L10n.t("hist.disabled", [:], lang), systemImage: "clock.badge.xmark")
             } else if history.isEmpty {
                 ContentUnavailableView(L10n.t("hist.empty", [:], lang), systemImage: "qrcode")
@@ -167,7 +142,7 @@ struct HistoryScreen: View {
                 }
             }
         }
-        .navigationTitle(L10n.t("hist.title", [:], lang))
+        .navigationTitle("").navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(L10n.t("hist.clear", [:], lang), isPresented: $confirmClear, titleVisibility: .visible) {
             Button(L10n.t("hist.clear", [:], lang), role: .destructive) { HistoryStore.clear(in: modelContext) }
         }

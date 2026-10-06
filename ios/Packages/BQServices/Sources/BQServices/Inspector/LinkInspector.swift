@@ -47,6 +47,15 @@ public actor LinkInspector {
     ///   - progress: called as steps begin; may be called from any thread.
     public func inspect(_ url: URL, options: InspectionOptions = InspectionOptions(), manualOverride: Bool = false,
                         progress: @escaping @Sendable (InspectionProgress) -> Void = { _ in }) async -> Inspection {
+        var result = await inspectPage(url, options: options, manualOverride: manualOverride, progress: progress)
+        if result.destination == nil {
+            result.destination = result.resolution(scannedURL: Self.display(url), fallbackCompleteness: result.completeness ?? .complete)
+        }
+        return result
+    }
+
+    private func inspectPage(_ url: URL, options: InspectionOptions, manualOverride: Bool,
+                             progress: @escaping @Sendable (InspectionProgress) -> Void) async -> Inspection {
         let deadline = ContinuousClock.now + options.overallDeadline
         guard options.pageFetch || options.domainChecks else {
             return Inspection(completeness: Completeness(.incomplete, reason: IncompleteReason.checksDisabled))
@@ -117,7 +126,11 @@ public actor LinkInspector {
         var walk = Walk(start: url, firstDecision: first, options: options, deadline: deadline, manualOverride: manualOverride)
         await run(&walk, progress: progress)
         let domain = await destinationFacts(walk.destination, scanned: checks, deadline: deadline)
-        return Inspection(chain: walk.chain, final: walk.final, page: walk.page, domain: domain, completeness: walk.completeness)
+        let resolution = DestinationResolution(state: walk.resolutionState, scannedURL: Self.display(url),
+            lastObserved: walk.lastObserved, resolved: walk.resolved, reason: walk.completeness.reason,
+            allowsDirectOpen: walk.resolutionState == .resolved && !walk.hasFragment && walk.completeness.state == .complete)
+        return Inspection(chain: walk.chain, final: walk.final, page: walk.page, domain: domain,
+                          completeness: walk.completeness, destination: resolution, transportError: walk.transportError)
     }
 
     /// Domain facts for the furthest destination the walk reached or tried to reach (the scanned
@@ -175,12 +188,17 @@ public actor LinkInspector {
         var previousHost: String?
         var final: Endpoint?
         var page: PageFacts?
+        var transportError: String?
         var completeness = Completeness.complete
         /// Set as soon as any response body (or page analysis) along the walk was incomplete: the
         /// inspection can't end complete after that, wherever the walk goes next.
         var degraded: Completeness?
         /// The last URL we contacted or tried to contact (for the domain checks).
         var destination: URL?
+        var lastObserved: Endpoint?
+        var resolved: Endpoint?
+        var resolutionState = DestinationResolution.State.unresolved
+        var hasFragment: Bool
 
         init(start: URL, firstDecision: LinkGate.Decision, options: InspectionOptions, deadline: Deadline, manualOverride: Bool) {
             current = start
@@ -189,6 +207,7 @@ public actor LinkInspector {
             self.deadline = deadline
             self.manualOverride = manualOverride
             bytesLeft = options.maxTotalBytes
+            hasFragment = start.fragment != nil
         }
 
         mutating func stop(_ hop: Hop, _ completeness: Completeness) {
@@ -204,6 +223,7 @@ public actor LinkInspector {
 
     private func run(_ walk: inout Walk, progress: @Sendable (InspectionProgress) -> Void) async {
         while true {
+            if walk.current.fragment != nil { walk.hasFragment = true }
             let decision = walk.decision ?? gate.evaluate(walk.current, hop: walk.hopIndex, manualOverride: walk.manualOverride)
             walk.decision = nil
             let display = LinkInspector.display(walk.current)
@@ -227,6 +247,7 @@ public actor LinkInspector {
                 // ends the walk where it should: complete — unless something earlier in the walk
                 // was incomplete, which `stop` keeps.
                 if walk.hopIndex > 0, refusal == .unsupportedScheme, LinkInspector.isStoreHandOff(walk.current) {
+                    walk.resolutionState = .appHandoff
                     return walk.stop(Hop(url: display, stopped: .gate), .complete)
                 }
                 return walk.stop(Hop(url: display, stopped: .gate), Completeness(.incomplete, reason: IncompleteReason.refused(refusal)))
@@ -260,11 +281,13 @@ public actor LinkInspector {
             do {
                 response = try await transport.fetch(request)
             } catch {
+                walk.transportError = String(describing: error)
                 if error != .nonPublicAddress, error != .unverifiableAddress { walk.destination = target }
                 let (stop, reason) = await failure(error, upgraded: upgraded)
                 return walk.stop(Hop(url: recorded, kind: kind, stopped: stop), Completeness(.incomplete, reason: reason))
             }
             walk.destination = target
+            walk.lastObserved = endpoint(target)
             walk.bytesLeft -= response.body.count
             // Kinds, first one wins: HTTPS upgrade, short link / curated relationship, then how it redirects.
             if kind == nil { kind = hopKind(host: host, previousHost: walk.previousHost) }
@@ -282,7 +305,11 @@ public actor LinkInspector {
 
             // Where does this response send the browser next?
             var next: URL?
-            if response.isRedirect, let location = response.headers["location"] {
+            if response.isRedirect {
+                guard let location = response.headers["location"], !location.trimmingCharacters(in: .whitespaces).isEmpty else {
+                    walk.final = endpoint(target)
+                    return walk.stop(hop, Completeness(.incomplete, reason: IncompleteReason.redirectMissing))
+                }
                 guard let resolved = LinkInspector.resolve(location: location, against: target) else {
                     walk.chain.append(hop)
                     return walk.stop(Hop(url: LinkInspector.sanitizedLocation(location), stopped: .gate),
@@ -302,6 +329,15 @@ public actor LinkInspector {
                     // Not examined to the end: a limit, or the deadline / cancellation stopped the analysis.
                     walk.degrade(walk.deadline.hasPassed ? IncompleteReason.timeout : IncompleteReason.pageTruncated)
                 }
+                if !(200..<300).contains(response.status) {
+                    walk.final = endpoint(target); walk.page = analysis.facts
+                    return walk.stop(hop, Completeness(.incomplete, reason: IncompleteReason.httpError))
+                }
+                if !analysis.scriptRedirects.isEmpty {
+                    // A competing refresh does not prove which route script would choose.
+                    walk.final = endpoint(target); walk.page = analysis.facts
+                    return walk.stop(hop, Completeness(.incomplete, reason: IncompleteReason.jsOnly))
+                }
                 if let refresh = analysis.refresh, refresh.delay <= LinkInspector.maxRefreshDelay,
                    let destination = refresh.url, LinkInspector.loopKey(destination) != key {
                     if hop.kind == nil { hop.kind = .metaRefresh }
@@ -310,15 +346,32 @@ public actor LinkInspector {
                     walk.final = endpoint(target)
                     walk.page = analysis.facts
                     if stalled { hop.stopped = .timeout }
-                    // "Script only" is judged on a page we read completely; otherwise the earlier reason stands.
-                    let scriptOnly = walk.degraded == nil && analysis.scriptOnly
-                    return walk.stop(hop, scriptOnly ? Completeness(.incomplete, reason: IncompleteReason.jsOnly) : .complete)
+                    let reason: String?
+                    if analysis.hasRefresh { reason = IncompleteReason.refreshUnsupported }
+                    else if isShortener(host) { reason = IncompleteReason.shortenerUnresolved }
+                    else { reason = nil }
+                    if reason == nil, walk.degraded == nil {
+                        walk.resolved = endpoint(target); walk.resolutionState = .resolved
+                    }
+                    return walk.stop(hop, reason.map { Completeness(.incomplete, reason: $0) } ?? .complete)
                 }
             } else {
                 // A final response that is not a page (a file, an image, an empty 204…) — or one whose
                 // body stalled before it could be recognized.
                 walk.final = endpoint(target)
                 if stalled { hop.stopped = .timeout }
+                if !(200..<300).contains(response.status) {
+                    return walk.stop(hop, Completeness(.incomplete, reason: IncompleteReason.httpError))
+                }
+                if response.headers["refresh"] != nil {
+                    return walk.stop(hop, Completeness(.incomplete, reason: IncompleteReason.refreshUnsupported))
+                }
+                if isShortener(host) {
+                    return walk.stop(hop, Completeness(.incomplete, reason: IncompleteReason.shortenerUnresolved))
+                }
+                if walk.degraded == nil {
+                    walk.resolved = endpoint(target); walk.resolutionState = .resolved
+                }
                 return walk.stop(hop, .complete)
             }
 

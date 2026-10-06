@@ -66,6 +66,7 @@ struct Receipt<Content: View>: View {
 
 /// `.intent`: what the payment does, in a capsule.
 struct IntentChip: View {
+    @Environment(\.bqDesign) private var design
     var text: String
     var icon: String
     var tone: Tone = .info
@@ -79,10 +80,10 @@ struct IntentChip: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .bqFont(13.5, .bold, relativeTo: .footnote)
-        .foregroundStyle(tone.strong)
+        .foregroundStyle(tone.panelInk(in: design))
         .padding(.horizontal, 11)
         .padding(.vertical, 5)
-        .background(tone.background, in: .capsule)
+        .background(tone.panel(in: design), in: .capsule)
     }
 }
 

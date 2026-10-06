@@ -248,6 +248,7 @@
     "chk.sensitive_local": { "cs": "Kód zůstává jen v telefonu — nic jsme neodesílali", "en": "The code stays on your phone — nothing was sent" }
   },
   "incomplete": {
+    "inc.cancelled": { "cs": "Kontrola byla ukončena před dokončením. Můžete ji spustit znovu.", "en": "The check was cancelled before completion. You can retry it." },
     "inc.offline": { "cs": "Jste offline — web jsme nemohli zkontrolovat.", "en": "You're offline — we couldn't check the website." },
     "inc.timeout": { "cs": "Web neodpověděl včas.", "en": "The website didn't respond in time." },
     "inc.billing_stop": { "cs": "Zastavili jsme se před platební bránou operátora.", "en": "We stopped before an operator payment gateway." },
@@ -256,6 +257,10 @@
     "inc.auth_path_skipped": { "cs": "Odkaz vede na přihlášení nebo ověření. Nenačítáme ho automaticky.", "en": "The link leads to a sign-in or verification page. We don't load it automatically." },
     "inc.checks_disabled": { "cs": "Kontrola odkazu je v Nastavení vypnutá.", "en": "Link checking is turned off in Settings." },
     "inc.js_only": { "cs": "Stránka přesměrovává jen skriptem — další cíl neznáme.", "en": "The page redirects only via script — the next destination is unknown." },
+    "inc.redirect_missing": { "cs": "Web oznámil přesměrování, ale neuvedl použitelnou cílovou adresu.", "en": "The website returned a redirect without a usable destination address." },
+    "inc.refresh_unsupported": { "cs": "Stránka požaduje další přesměrování nebo obnovení, které kontrola nedokončila.", "en": "The page requests another redirect or reload that the check could not complete." },
+    "inc.http_error": { "cs": "Web vrátil chybu nebo omezil přístup. Cílovou stránku jsme nemohli zkontrolovat.", "en": "The website returned an error or restricted access. We could not check the destination page." },
+    "inc.shortener_unresolved": { "cs": "Zkracovač neposkytl další adresu. Skutečný cíl odkazu se nepodařilo zjistit.", "en": "The shortener did not provide another address. The link’s destination could not be established." },
     "inc.not_loaded_file": { "cs": "Soubor ke stažení nenačítáme.", "en": "We don't download files." },
     "inc.not_loaded_profile": { "cs": "Profil nestahujeme.", "en": "We don't download profiles." },
     "inc.not_loaded_calendar": { "cs": "Kalendář nestahujeme.", "en": "We don't download calendars." },

@@ -71,6 +71,15 @@ public protocol ResultActionHandler: AnyObject {
     func perform(_ action: ResultAction, for analysis: Analysis) async -> ActionResult
 }
 
+/// Side effects available to the presenting host. Checked again at dispatch, including card actions.
+public enum ResultCapabilities: Sendable {
+    case app, imageExtension, preview
+    public func supports(_ action: ResultAction) -> Bool {
+        guard self == .imageExtension else { return true }
+        switch action { case .copy, .manualCheck, .close, .backToScanning: return true; default: return false }
+    }
+}
+
 /// State of one result sheet. The app owns it: it replaces `analysis` when the network inspection
 /// finishes and drives `isChecking` / `step` while it runs.
 @MainActor
@@ -85,6 +94,7 @@ public final class ResultModel {
             revealPassword = false
             contactSaved = false
             detailsExpanded = false
+            moreActionsExpanded = false
             contactMoreExpanded = false
             confirmation = nil
         }
@@ -119,6 +129,12 @@ public final class ResultModel {
 
     /// The language of the sheet.
     public var language: Language
+    public var capabilities: ResultCapabilities = .app
+    /// Expanding the presentation changes no analysis, selection or running check.
+    public var resultExpanded = false
+    @ObservationIgnored public var onShowAllCodes: (() -> Void)?
+    public var pageExtractExpanded = false
+    @ObservationIgnored public var onRecoveryHelp: (() -> Void)?
 
     public init(analysis: Analysis, fromCamera: Bool, language: Language = .preferred) {
         self.analysis = analysis
@@ -126,6 +142,8 @@ public final class ResultModel {
         self.language = language
         self.isChecking = analysis.completeness.reason == "inc.pending"
     }
+
+    public func resetPresentation() { resultExpanded = false; route = .result; detailsExpanded = false }
 
     // MARK: UI state (internal)
 
@@ -150,6 +168,7 @@ public final class ResultModel {
     var route: Route = .result
     var revealPassword = false
     var contactSaved = false
+    var moreActionsExpanded = false
     var detailsExpanded = false
     var contactMoreExpanded = false
     var toast: Toast?
@@ -178,6 +197,12 @@ public final class ResultModel {
     func perform(_ action: ResultAction) {
         let leaving = action == .close || action == .backToScanning
         guard leaving || inFlight == nil else { return }
+        guard capabilities.supports(action) else {
+            finish(action, .failed(language.t("share.continueApp"))); return
+        }
+        if capabilities == .preview && !leaving {
+            finish(action, .done(toast: language.t("lab.simulated"))); return
+        }
         guard let handler else { return }
         if !leaving { inFlight = action }
         let analysis = self.analysis

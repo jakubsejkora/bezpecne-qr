@@ -1,114 +1,99 @@
 import BQCore
+import BQServices
 import BQUI
 import SwiftData
 import SwiftUI
 
 @main
 struct BezpecneQRApp: App {
-    private let container = HistoryStore.makeContainer()
+    private let container: ModelContainer
     @State private var flow = ScanFlow(checker: LinkChecker())
     @AppStorage(SettingsKey.onboardingDone) private var onboardingDone = false
-
+    init() {
+        SharedSettings.migrate(); container = HistoryStore.makeContainer()
+        #if DEBUG || DESIGN_REVIEW
+        HistoryExport.invalidate()
+        #endif
+    }
     var body: some Scene {
         WindowGroup {
-            ZStack {
-                if onboardingDone {
-                    ScannerScreen(flow: flow)
-                } else {
-                    OnboardingScreen { onboardingDone = true }
-                }
+            AppearanceHost {
+                if onboardingDone { AppTabs(flow: flow) }
+                else { OnboardingScreen { onboardingDone = true; SharedSettings.defaults.set(true, forKey: SharedSettings.networkNotice) } }
             }
-            .preferredColorScheme(nil)
-        }
-        .modelContainer(container)
+        }.modelContainer(container)
     }
 }
 
-/// Two short pages: what the app does (and what it checks over the internet), then the camera.
+enum AppTab: Hashable { case scan, help, settings }
+struct AppTabs: View {
+    @State var flow: ScanFlow
+    @State private var tab = AppTab.scan
+    @State private var recovery = false
+    @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var phase
+    @Environment(\.colorScheme) private var appColorScheme
+    var body: some View {
+        TabView(selection: $tab) {
+            Tab(L10n.t("scan.title", .preferred), systemImage: "viewfinder", value: .scan) { ScannerScreen(flow: flow) }
+            Tab(L10n.t("nav.help", .preferred), systemImage: "lifepreserver", value: .help) { NavigationStack { HelpScreen() } }
+            if #available(iOS 27, *) {
+                Tab(L10n.t("set.title", .preferred), systemImage: "gearshape", value: .settings, role: .prominent) { SettingsScreen(flow: flow) }
+            } else {
+                Tab(L10n.t("set.title", .preferred), systemImage: "gearshape", value: .settings) { SettingsScreen(flow: flow) }
+            }
+        }
+        // Glass can be dark over the camera even in light mode. Use the system's
+        // foreground so the selected tab adapts to the bar, not the page palette.
+        .tint(.primary)
+        .toolbarColorScheme(tab == .scan ? .dark : appColorScheme, for: .tabBar)
+        .modifier(ScanResultPresentation(flow: flow, recovery: $recovery))
+        .onChange(of: tab) { _, value in flow.scannerVisible = value == .scan; flow.cancelImport() }
+        .onChange(of: phase) { _, value in
+            flow.appActive = value == .active
+            if value == .active { HistoryStore.importInbox(in: context) } else { flow.cancelImport() }
+            flow.updateCamera()
+        }
+        .onAppear {
+            flow.modelContext = context; flow.scannerVisible = tab == .scan; flow.appActive = phase == .active
+            flow.onRecoveryHelp = { recovery = true }
+            flow.onShowScanner = { tab = .scan }
+            HistoryStore.importInbox(in: context); flow.updateCamera()
+            #if DEBUG || DESIGN_REVIEW
+            DebugLaunch.run(flow)
+            if let openTab = DebugLaunch.openTab { tab = openTab }
+            #endif
+        }
+    }
+}
+
 struct OnboardingScreen: View {
     let done: () -> Void
     @State private var page = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private let lang = Language.preferred
-
+    @Environment(\.bqDesign) private var design
+    @Environment(\.accessibilityReduceMotion) private var reduced
     var body: some View {
-        ZStack {
-            LinearGradient(colors: [Color(red: 0.31, green: 0.55, blue: 1.0), Color(red: 0.12, green: 0.23, blue: 0.54)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-                .ignoresSafeArea()
-            VStack(alignment: .leading, spacing: 18) {
-                Spacer(minLength: 20)
-                Image(systemName: page == 0 ? "checkmark.shield.fill" : "camera.viewfinder")
-                    .font(.system(size: 64, weight: .semibold))
-                    .symbolEffect(.bounce, value: page)
-                    .frame(width: 112, height: 112)
-                    .appGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                HStack { Label("Bezpečné QR", systemImage: "viewfinder").font(.headline); Spacer()
+                }
+                Image(systemName: page == 0 ? "qrcode.viewfinder" : "camera")
+                    .font(.system(size: 72, weight: .light)).frame(maxWidth: .infinity, minHeight: 150)
+                    .background(design.accent, in: RoundedRectangle(cornerRadius: design.radius))
                     .accessibilityHidden(true)
+                DesignHeading(L10n.t(page == 0 ? "onb.1.title" : "onb.2.title", .preferred),
+                              subtitle: L10n.t(page == 0 ? "onb.1.text" : "onb.2.text", .preferred))
                 if page == 0 {
-                    Text(L10n.t("onb.1.title", [:], lang)).font(.largeTitle.bold())
-                    Text(L10n.t("onb.1.text", [:], lang)).font(.title3)
-                    VStack(alignment: .leading, spacing: 12) {
-                        bullet("iphone", "onb.1.b1")
-                        bullet("lock.fill", "onb.1.b2")
-                        bullet("banknote.fill", "onb.1.b3")
-                    }
-                    .padding(.top, 6)
-                    Text(L10n.t("onb.privacyNote", [:], lang))
-                        .font(.footnote)
-                        .opacity(0.85)
-                        .padding(.top, 6)
-                } else {
-                    Text(L10n.t("onb.2.title", [:], lang)).font(.largeTitle.bold())
-                    Text(L10n.t("onb.2.text", [:], lang)).font(.title3)
+                    ForEach(["onb.1.b1", "onb.1.b2", "onb.1.b3"], id: \.self) { Text(L10n.t($0, .preferred)).font(.body) }
+                    Text(L10n.t("onb.privacyNote", .preferred)).font(.footnote).foregroundStyle(.secondary)
                 }
-                Spacer()
-                HStack(spacing: 8) {
-                    ForEach(0..<2, id: \.self) { i in
-                        Capsule().fill(.white.opacity(i == page ? 1 : 0.4)).frame(width: i == page ? 22 : 8, height: 8)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .accessibilityHidden(true)
-                if page == 0 {
-                    primary(L10n.t("onb.continue", [:], lang)) {
-                        withAnimation(reduceMotion ? nil : .easeInOut) { page = 1 }
-                    }
-                    Button(L10n.t("onb.skip", [:], lang)) { done() }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                } else {
-                    primary(L10n.t("onb.allowCamera", [:], lang)) {
-                        Task {
-                            _ = await CameraController.requestAccess()
-                            done()
-                        }
-                    }
-                    Button(L10n.t("onb.notNow", [:], lang)) { done() }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                }
-            }
-            .foregroundStyle(.white)
-            .padding(28)
-        }
-    }
-
-    private func bullet(_ icon: String, _ key: String) -> some View {
-        Label {
-            Text(L10n.t(key, [:], lang)).font(.body.weight(.medium))
-        } icon: {
-            Image(systemName: icon).frame(width: 28)
-        }
-    }
-
-    private func primary(_ title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .foregroundStyle(Color(red: 0.12, green: 0.23, blue: 0.54))
-                .background(.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        }
+                Button(L10n.t(page == 0 ? "onb.continue" : "onb.allowCamera", .preferred)) {
+                    if page == 0 { withAnimation(reduced ? nil : .easeInOut(duration: 0.2)) { page = 1 } }
+                    else { Task { _ = await CameraController.requestAccess(); done() } }
+                }.buttonStyle(PrimaryButtonStyle())
+                Button(L10n.t(page == 0 ? "onb.skip" : "onb.notNow", .preferred), action: done)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }.padding(design.padding)
+        }.background(design.background).foregroundStyle(design.ink)
     }
 }

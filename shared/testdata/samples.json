@@ -9,6 +9,11 @@
       "type": "url", "engine": "url",
       "fields": { "url": "https://qrco.de/bfK7aQ", "host": "qrco.de", "registrable": "qrco.de" },
       "inspection": {
+        "destination": {
+          "state": "resolved", "scannedURL": "https://qrco.de/bfK7aQ", "allowsDirectOpen": true,
+          "lastObserved": { "url": "https://www.kavarnaulipy.cz/menu", "host": "www.kavarnaulipy.cz", "registrable": "kavarnaulipy.cz" },
+          "resolved": { "url": "https://www.kavarnaulipy.cz/menu", "host": "www.kavarnaulipy.cz", "registrable": "kavarnaulipy.cz" }
+        },
         "chain": [
           { "url": "https://qrco.de/bfK7aQ", "status": 302, "kind": "shortener" },
           { "url": "https://www.kavarnaulipy.cz/menu", "status": 200 }

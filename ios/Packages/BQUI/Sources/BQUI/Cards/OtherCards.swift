@@ -4,6 +4,7 @@ import SwiftUI
 /// Plain text on a yellow note, with detected entities (accounts, "bezpečný účet"…) marked.
 struct NoteCard: View {
     var info: TextInfo
+    @State private var expanded = false
     @Environment(\.bqLanguage) private var lang
 
     var body: some View {
@@ -12,14 +13,19 @@ struct NoteCard: View {
                 .bqFont(13, .semibold, relativeTo: .footnote)
                 .opacity(0.7)
             Text(marked)
+                .lineLimit(expanded || (info.text.count <= 180 && !info.text.contains("\n")) ? nil : 6)
                 .bqFont(18, relativeTo: .body)
                 .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
+            if info.text.count > 180 || info.text.contains("\n") {
+                Button(lang.t(expanded ? "text.less" : "text.full")) { expanded.toggle() }
+                    .font(.subheadline.weight(.semibold)).frame(minHeight: 44)
+            }
         }
-        .foregroundStyle(BQColor.noteInk)
+        .foregroundStyle(BQColor.label)
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(BQColor.notePaper, in: .card(Metrics.cardRadius))
+        .background(BQColor.card, in: .card(Metrics.cardRadius))
         .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
         .blockGap()
         .accessibilityElement(children: .combine)
